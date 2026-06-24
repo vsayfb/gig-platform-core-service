@@ -16,6 +16,7 @@ type UserLocationRepository interface {
 	Save(ctx context.Context, loc *UserLocation) (*UserLocation, error)
 	Update(ctx context.Context, loc *UserLocation) (*UserLocation, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) (*UserLocation, error)
+	FindNearby(ctx context.Context, lat, lng float64, radiusKm float64, excludeUserID uuid.UUID) ([]*UserLocation, error)
 }
 
 type userLocationRepository struct {
@@ -38,6 +39,16 @@ const updateUserLocationQuery = `
 	WHERE user_id = $3
 	RETURNING id, user_id, ST_X(location::geometry), ST_Y(location::geometry), updated_at, is_flagged
 `
+
+const findNearbyQuery = `
+	SELECT id, user_id,
+	       ST_Y(location::geometry) AS lat,
+	       ST_X(location::geometry) AS lng,
+	       updated_at, is_flagged
+	FROM user_locations
+	WHERE ST_DWithin(location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3)
+	  AND user_id != $4
+	ORDER BY location <-> ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography`
 
 const findUserLocationByUserIDQuery = `
 	SELECT id, user_id, ST_X(location::geometry), ST_Y(location::geometry), updated_at, is_flagged
@@ -67,6 +78,26 @@ func (r *userLocationRepository) FindByUserID(ctx context.Context, userID uuid.U
 	}
 
 	return result, err
+}
+
+func (r *userLocationRepository) FindNearby(ctx context.Context, lat, lng float64, radiusKm float64, excludeUserID uuid.UUID) ([]*UserLocation, error) {
+	rows, err := r.db.Query(ctx, findNearbyQuery, lat, lng, radiusKm*1000, excludeUserID)
+
+	if err != nil {
+		return nil, fmt.Errorf("FindNearby failed: %w", err)
+	}
+
+	defer rows.Close()
+
+	var results []*UserLocation
+	for rows.Next() {
+		out := &UserLocation{}
+		if err := rows.Scan(&out.ID, &out.UserID, &out.Lat, &out.Lng, &out.UpdatedAt, &out.IsFlagged); err != nil {
+			return nil, fmt.Errorf("FindNearby scan failed: %w", err)
+		}
+		results = append(results, out)
+	}
+	return results, rows.Err()
 }
 
 func (r *userLocationRepository) scan(row pgx.Row) (*UserLocation, error) {
