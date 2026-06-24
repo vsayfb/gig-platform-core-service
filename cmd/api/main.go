@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/vsayfb/gig-platform-core-service/config"
 	"github.com/vsayfb/gig-platform-core-service/pkg/database"
+	"github.com/vsayfb/gig-platform-core-service/pkg/logger"
 )
 
 func main() {
@@ -17,10 +20,16 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	_, err = database.NewPool(ctx, cfg.DB.DSN())
+	logger.Init(cfg.Env)
+
+	db, err := database.NewPool(ctx, cfg.DB.DSN())
 
 	if err != nil {
-		log.Fatalf("failed to connect to db: %v", err)
+		slog.Error("failed to connect to db", "err", err)
+		os.Exit(1)
 	}
 
+	defer db.Close()
+
+	slog.Info("db connected")
 }

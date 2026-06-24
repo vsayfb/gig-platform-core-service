@@ -11,6 +11,7 @@ type Config struct {
 	JWT    JWTConfig
 	Google GoogleConfig
 	Server ServerConfig
+	Env    string
 }
 
 type DBConfig struct {
@@ -55,6 +56,7 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Port: os.Getenv("SERVER_PORT"),
 		},
+		Env: os.Getenv("APP_ENV"),
 	}
 
 	if err := cfg.validate(); err != nil {
