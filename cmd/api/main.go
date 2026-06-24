@@ -45,6 +45,14 @@ func main() {
 
 	slog.Info("db connected")
 
+	if cfg.Env != "production" {
+		if err := database.RunMigrations(cfg.DB.URL()); err != nil {
+			slog.Error("failed to run migrations", "err", err)
+
+			os.Exit(1)
+		}
+	}
+
 	googleVerifier, err := google.NewVerifier(ctx, cfg.Google.ClientID)
 
 	if err != nil {
