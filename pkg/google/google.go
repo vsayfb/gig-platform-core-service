@@ -20,10 +20,17 @@ type Verifier struct {
 }
 
 func NewVerifier(ctx context.Context, clientID string) (*Verifier, error) {
+
+	/*
+	* fetches google's public keys from disconvery endpoint once
+	* and caches them locally
+	* */
+
 	provider, err := oidc.NewProvider(
 		ctx,
 		"https://accounts.google.com",
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("create oidc provider: %w", err)
 	}
