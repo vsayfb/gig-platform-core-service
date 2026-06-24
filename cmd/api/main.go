@@ -14,6 +14,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
+	"github.com/vsayfb/gig-platform-core-service/internal/user/location"
 	"github.com/vsayfb/gig-platform-core-service/pkg/database"
 	"github.com/vsayfb/gig-platform-core-service/pkg/google"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
@@ -69,14 +70,17 @@ func main() {
 	userRepo := user.NewUserRepository(db)
 	authRepo := auth.NewUserAuthRepository(db)
 	categoryRepo := category.NewCategoryRepository(db)
+	locationRepo := location.NewUserLocationRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	authService := auth.NewUserAuthService(authRepo, userRepo, *googleVerifier, jwtManager, db)
 	categoryService := category.NewCategoryService(categoryRepo)
+	locationService := location.NewUserLocationService(locationRepo)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
 	categoryHandler := category.NewCategoryHandler(categoryService)
+	locationHandler := location.NewUserLocationHandler(locationService)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -94,6 +98,10 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		categoryHandler.RegisterRoutes(r, jwtManager)
+	})
+
+	r.Group(func(r chi.Router) {
+		locationHandler.RegisterRoutes(r)
 	})
 
 	slog.Info("server ready", "port", cfg.Server.Port)
