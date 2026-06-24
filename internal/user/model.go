@@ -9,6 +9,7 @@ import (
 type User struct {
 	ID               uuid.UUID
 	Name             string
+	Email            string
 	AvatarURL        string
 	Bio              string
 	IsVerified       bool
@@ -17,9 +18,9 @@ type User struct {
 	CreatedAt        time.Time
 }
 
-func NewUser(name, bio string) *User {
+func NewUser(name, email string) *User {
 	return &User{
-		Name: name,
-		Bio:  bio,
+		Name:  name,
+		Email: email,
 	}
 }
