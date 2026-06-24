@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
+	"github.com/vsayfb/gig-platform-core-service/internal/user/reputation"
 	"github.com/vsayfb/gig-platform-core-service/pkg/google"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 )
@@ -18,11 +19,12 @@ type AuthResult struct {
 }
 
 type UserAuthService struct {
-	authRepo      UserAuthRepository
-	userRepo      user.UserRepository
-	tokenVerifier google.Verifier
-	jwtManager    *jwt.Manager
-	db            *pgxpool.Pool
+	authRepo          UserAuthRepository
+	userRepo          user.UserRepository
+	reputationService *reputation.UserReputationService
+	tokenVerifier     google.Verifier
+	jwtManager        *jwt.Manager
+	db                *pgxpool.Pool
 }
 
 func NewUserAuthService(
@@ -74,6 +76,7 @@ func (s *UserAuthService) GoogleLogin(ctx context.Context, idToken string) (*Aut
 	}
 
 	slog.Info("new user registered", "user_id", u.ID)
+
 	return s.issueToken(u)
 }
 
@@ -86,7 +89,7 @@ func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (
 
 	defer tx.Rollback(ctx)
 
-	newUser := user.NewUser(claims.Name, "")
+	newUser := user.NewUser(claims.Name, claims.Email)
 	createdUser, err := s.userRepo.Save(ctx, newUser)
 
 	if err != nil {
@@ -97,6 +100,10 @@ func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (
 
 	if _, err := s.authRepo.Save(ctx, authRecord); err != nil {
 		return nil, fmt.Errorf("failed to create user auth: %w", err)
+	}
+
+	if _, err := s.reputationService.Initialize(ctx, createdUser.ID); err != nil {
+		return nil, fmt.Errorf("failed to initialize reputation: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
