@@ -1,0 +1,94 @@
+package user
+
+import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/vsayfb/gig-platform-core-service/pkg/httputil"
+)
+
+type UserHandler struct {
+	service *UserService
+}
+
+func NewUserHandler(service *UserService) *UserHandler {
+	return &UserHandler{service: service}
+}
+
+func (h *UserHandler) RegisterRoutes(r chi.Router) {
+	r.Get("/users/{id}", h.GetByID)
+	r.Put("/users/me/profile", h.UpdateProfile)
+}
+
+func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+
+	if err != nil {
+		slog.Warn("invalid request body", "err", err)
+
+		httputil.WriteError(w, http.StatusBadRequest, "invalid user id")
+
+		return
+	}
+
+	user, err := h.service.GetByID(r.Context(), id)
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusNotFound, "user not found")
+
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, user)
+}
+
+func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Name             string `json:"name"`
+		Bio              string `json:"bio"`
+		IsAvailableToday bool   `json:"is_available_today"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+
+		slog.Warn("invalid request body", "err", err)
+
+		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
+
+		return
+	}
+
+	userID := r.Context().Value("userID").(uuid.UUID)
+
+	updated, err := h.service.UpdateProfile(r.Context(), &User{
+		ID:               userID,
+		Name:             input.Name,
+		Bio:              input.Bio,
+		IsAvailableToday: input.IsAvailableToday,
+	})
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to update profile")
+
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, updated)
+}
+
+func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userID").(uuid.UUID)
+
+	if err := h.service.Delete(r.Context(), userID); err != nil {
+		slog.Error("failed to delete user", "err", err)
+
+		httputil.WriteError(w, http.StatusInternalServerError, "failed to delete user")
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
