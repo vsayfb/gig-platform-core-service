@@ -11,6 +11,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/vsayfb/gig-platform-core-service/config"
+	"github.com/vsayfb/gig-platform-core-service/internal/category"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
 	"github.com/vsayfb/gig-platform-core-service/pkg/database"
@@ -67,12 +68,15 @@ func main() {
 
 	userRepo := user.NewUserRepository(db)
 	authRepo := auth.NewUserAuthRepository(db)
+	categoryRepo := category.NewCategoryRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	authService := auth.NewUserAuthService(authRepo, userRepo, *googleVerifier, jwtManager, db)
+	categoryService := category.NewCategoryService(categoryRepo)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
+	categoryHandler := category.NewCategoryHandler(categoryService)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -86,6 +90,10 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(jwtManager))
 		userHandler.RegisterRoutes(r)
+	})
+
+	r.Group(func(r chi.Router) {
+		categoryHandler.RegisterRoutes(r, jwtManager)
 	})
 
 	slog.Info("server ready", "port", cfg.Server.Port)

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-
-	"github.com/google/uuid"
 )
 
 var ErrCategoryNotFound = errors.New("category not found")
@@ -46,28 +44,4 @@ func (s *CategoryService) Suggest(ctx context.Context, name, slug string) (*Cate
 	slog.Info("category suggested", "name", name, "slug", slug)
 
 	return created, nil
-}
-
-func (s *CategoryService) Approve(ctx context.Context, id uuid.UUID) (*Category, error) {
-	updated, err := s.repo.UpdateStatus(ctx, id, StatusActive)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to approve category: %w", err)
-	}
-
-	slog.Info("category approved", "id", id)
-
-	return updated, nil
-}
-
-func (s *CategoryService) Reject(ctx context.Context, id uuid.UUID) (*Category, error) {
-	updated, err := s.repo.UpdateStatus(ctx, id, StatusRejected)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to reject category: %w", err)
-	}
-
-	slog.Info("category rejected", "id", id)
-
-	return updated, nil
 }
