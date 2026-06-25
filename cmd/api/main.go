@@ -77,7 +77,7 @@ func main() {
 
 	userService := user.NewUserService(userRepo)
 	reputationService := reputation.NewUserReputationService(reputationRepo)
-	authService := auth.NewUserAuthService(authRepo, userRepo, reputationService, *googleVerifier, jwtManager, db)
+	authService := auth.NewUserAuthService(authRepo, userRepo, reputationService, googleVerifier, jwtManager, db)
 	categoryService := category.NewCategoryService(categoryRepo)
 	locationService := location.NewUserLocationService(locationRepo)
 

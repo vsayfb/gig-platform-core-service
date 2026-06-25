@@ -23,7 +23,7 @@ type UserAuthService struct {
 	authRepo          UserAuthRepository
 	userRepo          user.UserRepository
 	reputationService *reputation.UserReputationService
-	tokenVerifier     google.Verifier
+	tokenVerifier     google.TokenVerifier
 	jwtManager        *jwt.Manager
 	db                *pgxpool.Pool
 }
@@ -32,7 +32,7 @@ func NewUserAuthService(
 	authRepo UserAuthRepository,
 	userRepo user.UserRepository,
 	reputationService *reputation.UserReputationService,
-	verifier google.Verifier,
+	verifier google.TokenVerifier,
 	jwtManager *jwt.Manager,
 	db *pgxpool.Pool,
 ) *UserAuthService {
