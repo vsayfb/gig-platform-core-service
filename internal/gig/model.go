@@ -34,8 +34,6 @@ type Gig struct {
 	EndDate          *time.Time   `json:"end_date,omitempty"`
 	Slots            int          `json:"slots"`
 	Status           GigStatus    `json:"status"`
-	PayAmount        float64      `json:"pay_amount"`
-	PayCurrency      string       `json:"pay_currency"`
 	CreatedAt        time.Time    `json:"created_at"`
 	ExpiresAt        *time.Time   `json:"expires_at,omitempty"`
 }
@@ -65,7 +63,6 @@ type FeedParams struct {
 	Lng          float64
 	RadiusMeters float64
 	DurationType *DurationType
-	MinPay       *float64
 	CategoryID   *uuid.UUID
 	Cursor       *time.Time // created_at of last seen gig (keyset pagination)
 	Limit        int
@@ -79,8 +76,6 @@ type CreateGigInput struct {
 	StartDate        time.Time    `json:"start_date"`
 	EndDate          *time.Time   `json:"end_date,omitempty"`
 	Slots            int          `json:"slots"`
-	PayAmount        float64      `json:"pay_amount"`
-	PayCurrency      string       `json:"pay_currency"`
 	ExpiresAt        *time.Time   `json:"expires_at,omitempty"`
 	Lat              float64      `json:"lat"`
 	Lng              float64      `json:"lng"`
@@ -97,6 +92,5 @@ type UpdateGigInput struct {
 	StartDate        *time.Time    `json:"start_date,omitempty"`
 	EndDate          *time.Time    `json:"end_date,omitempty"`
 	Slots            *int          `json:"slots,omitempty"`
-	PayAmount        *float64      `json:"pay_amount,omitempty"`
 	ExpiresAt        *time.Time    `json:"expires_at,omitempty"`
 }
