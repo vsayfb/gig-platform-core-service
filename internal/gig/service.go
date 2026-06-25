@@ -15,19 +15,11 @@ var (
 	ErrInvalidInput      = errors.New("gig: invalid input")
 )
 
-type Service interface {
-	Feed(ctx context.Context, p FeedParams) ([]*GigDetail, error)
-	Get(ctx context.Context, id uuid.UUID) (*GigDetail, error)
-	Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigDetail, error)
-	Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigDetail, error)
-	Cancel(ctx context.Context, gigID uuid.UUID, callerID uuid.UUID) error
-}
-
 type GigService struct {
 	repo GigRepository
 }
 
-func NewGigService(repo GigRepository) Service {
+func NewGigService(repo GigRepository) *GigService {
 	return &GigService{repo: repo}
 }
 

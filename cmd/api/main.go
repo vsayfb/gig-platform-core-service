@@ -13,6 +13,7 @@ import (
 
 	"github.com/vsayfb/gig-platform-core-service/config"
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
+	"github.com/vsayfb/gig-platform-core-service/internal/gig"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/location"
@@ -74,17 +75,20 @@ func main() {
 	categoryRepo := category.NewCategoryRepository(db)
 	locationRepo := location.NewUserLocationRepository(db)
 	reputationRepo := reputation.NewUserReputationRepository(db)
+	gigRepo := gig.NewRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	reputationService := reputation.NewUserReputationService(reputationRepo)
 	authService := auth.NewUserAuthService(authRepo, userRepo, reputationService, googleVerifier, jwtManager, db)
 	categoryService := category.NewCategoryService(categoryRepo)
 	locationService := location.NewUserLocationService(locationRepo)
+	gigService := gig.NewGigService(gigRepo)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
 	categoryHandler := category.NewCategoryHandler(categoryService)
 	locationHandler := location.NewUserLocationHandler(locationService)
+	gigHandler := gig.NewGigHandler(gigService)
 
 	r := chi.NewRouter()
 
@@ -93,6 +97,7 @@ func main() {
 			AllowedOrigins: []string{"*"},
 		}))
 	}
+
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
@@ -100,6 +105,7 @@ func main() {
 	r.Group(func(r chi.Router) {
 		authHandler.RegisterRoutes(r)
 		categoryHandler.RegisterRoutes(r, jwtManager)
+		gigHandler.RegisterRoutes(r, jwtManager)
 
 	})
 
