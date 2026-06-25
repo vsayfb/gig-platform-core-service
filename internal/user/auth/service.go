@@ -98,7 +98,7 @@ func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	authRecord := NewUserAuth(createdUser.ID, claims.Sub, "", "")
+	authRecord := NewUserAuth(createdUser.ID, claims.Sub, nil, nil)
 
 	if _, err := s.authRepo.Save(ctx, authRecord); err != nil {
 		return nil, fmt.Errorf("failed to create user auth: %w", err)
