@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 
 	"github.com/vsayfb/gig-platform-core-service/config"
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
@@ -86,6 +87,12 @@ func main() {
 	locationHandler := location.NewUserLocationHandler(locationService)
 
 	r := chi.NewRouter()
+
+	if cfg.Env != "production" {
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+	}
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
