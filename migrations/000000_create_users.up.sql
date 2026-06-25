@@ -23,10 +23,6 @@ CREATE TABLE user_auth (
 );
 
 -- enforce both are NULL or both are unique
-CREATE UNIQUE INDEX idx_user_auth_phone_unique 
-ON user_auth (phone_encrypted) 
-WHERE phone_encrypted IS NOT NULL;
-
 CREATE UNIQUE INDEX idx_user_auth_phone_hmac_unique 
 ON user_auth (phone_hmac) 
 WHERE phone_hmac IS NOT NULL;
