@@ -7,12 +7,12 @@ import (
 )
 
 type UserLocation struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	Lat       float64
-	Lng       float64
-	UpdatedAt time.Time
-	IsFlagged bool
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	UpdatedAt time.Time `json:"updated_at"`
+	IsFlagged bool      `json:"is_flagged"`
 }
 
 func NewUserLocation(userID uuid.UUID, lat, lng float64) *UserLocation {

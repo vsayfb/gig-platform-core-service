@@ -35,7 +35,9 @@ const saveUserLocationQuery = `
 
 const updateUserLocationQuery = `
 	UPDATE user_locations
-	SET location = ST_MakePoint($1, $2)::geography, updated_at = NOW()
+	SET location = ST_MakePoint($1, $2)::geography,
+	    updated_at = NOW(),
+	    is_flagged = $4
 	WHERE user_id = $3
 	RETURNING id, user_id, ST_X(location::geometry), ST_Y(location::geometry), updated_at, is_flagged
 `
@@ -63,8 +65,7 @@ func (r *userLocationRepository) Save(ctx context.Context, loc *UserLocation) (*
 }
 
 func (r *userLocationRepository) Update(ctx context.Context, loc *UserLocation) (*UserLocation, error) {
-	row := r.db.QueryRow(ctx, updateUserLocationQuery, loc.Lng, loc.Lat, loc.UserID)
-
+	row := r.db.QueryRow(ctx, updateUserLocationQuery, loc.Lng, loc.Lat, loc.UserID, loc.IsFlagged)
 	return r.scan(row)
 }
 

@@ -99,19 +99,15 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		authHandler.RegisterRoutes(r)
+		categoryHandler.RegisterRoutes(r, jwtManager)
+
 	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(jwtManager))
 		userHandler.RegisterRoutes(r)
-	})
-
-	r.Group(func(r chi.Router) {
-		categoryHandler.RegisterRoutes(r, jwtManager)
-	})
-
-	r.Group(func(r chi.Router) {
 		locationHandler.RegisterRoutes(r)
+
 	})
 
 	slog.Info("server ready", "port", cfg.Server.Port)

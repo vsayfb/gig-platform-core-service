@@ -32,7 +32,12 @@ func (h *UserLocationHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("userID").(uuid.UUID)
+	userID, ok := r.Context().Value("userID").(uuid.UUID)
+
+	if !ok {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	loc, err := h.service.Upsert(r.Context(), userID, input.Lat, input.Lng)
 	if err != nil {
