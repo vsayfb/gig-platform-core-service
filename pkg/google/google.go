@@ -3,6 +3,7 @@ package google
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -63,6 +64,8 @@ func (v *Verifier) Verify(
 	if err := token.Claims(&c); err != nil {
 		return nil, fmt.Errorf("decode claims: %w", err)
 	}
+
+	slog.Info("verified token claims", slog.Any("claims", c))
 
 	name := strings.TrimSpace(
 		c.GivenName + " " + c.FamilyName,

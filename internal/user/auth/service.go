@@ -30,16 +30,18 @@ type UserAuthService struct {
 func NewUserAuthService(
 	authRepo UserAuthRepository,
 	userRepo user.UserRepository,
+	reputationService *reputation.UserReputationService,
 	verifier google.Verifier,
 	jwtManager *jwt.Manager,
 	db *pgxpool.Pool,
 ) *UserAuthService {
 	return &UserAuthService{
-		authRepo:      authRepo,
-		userRepo:      userRepo,
-		tokenVerifier: verifier,
-		jwtManager:    jwtManager,
-		db:            db,
+		authRepo:          authRepo,
+		userRepo:          userRepo,
+		reputationService: reputationService,
+		tokenVerifier:     verifier,
+		jwtManager:        jwtManager,
+		db:                db,
 	}
 }
 

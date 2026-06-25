@@ -2,9 +2,11 @@ package auth
 
 import (
 	"encoding/json"
+	"log/slog"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	util "github.com/vsayfb/gig-platform-core-service/pkg/httputil"
-	"net/http"
 )
 
 type UserAuthHandler struct {
@@ -35,7 +37,10 @@ func (h *UserAuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.GoogleLogin(r.Context(), input.IDToken)
+
 	if err != nil {
+		slog.Warn("authentication failed", "err", err)
+
 		util.WriteError(w, http.StatusUnauthorized, "authentication failed")
 		return
 	}

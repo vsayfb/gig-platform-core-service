@@ -17,8 +17,4 @@ CREATE TABLE user_categories (
     PRIMARY KEY (user_id, category_id)
 );
 
-CREATE TABLE gig_categories (
-    gig_id      UUID NOT NULL REFERENCES gigs(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    PRIMARY KEY (gig_id, category_id)
-);
+

@@ -5,6 +5,7 @@ CREATE TABLE users (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name             VARCHAR(100) NOT NULL,
     avatar_url       TEXT,
+    email            TEXT NOT NULL,
     bio              TEXT,
     is_verified      BOOL NOT NULL DEFAULT FALSE,
     is_available_today BOOL NOT NULL DEFAULT FALSE,

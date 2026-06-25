@@ -15,6 +15,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/location"
+	"github.com/vsayfb/gig-platform-core-service/internal/user/reputation"
 	"github.com/vsayfb/gig-platform-core-service/pkg/database"
 	"github.com/vsayfb/gig-platform-core-service/pkg/google"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
@@ -71,9 +72,11 @@ func main() {
 	authRepo := auth.NewUserAuthRepository(db)
 	categoryRepo := category.NewCategoryRepository(db)
 	locationRepo := location.NewUserLocationRepository(db)
+	reputationRepo := reputation.NewUserReputationRepository(db)
 
 	userService := user.NewUserService(userRepo)
-	authService := auth.NewUserAuthService(authRepo, userRepo, *googleVerifier, jwtManager, db)
+	reputationService := reputation.NewUserReputationService(reputationRepo)
+	authService := auth.NewUserAuthService(authRepo, userRepo, reputationService, *googleVerifier, jwtManager, db)
 	categoryService := category.NewCategoryService(categoryRepo)
 	locationService := location.NewUserLocationService(locationRepo)
 
