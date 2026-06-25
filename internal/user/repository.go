@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/vsayfb/gig-platform-core-service/pkg/dbtx"
 )
 
 type UserRepository interface {
@@ -25,16 +26,13 @@ func NewUserRepository(db *pgxpool.Pool) UserRepository {
 
 func (r *userRepository) Save(ctx context.Context, user *User) (*User, error) {
 	query := `
-        INSERT INTO users (name, avatar_url, email, bio)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, name, avatar_url, email, bio,
-                  is_verified, is_available_today,
-                  last_active_at, created_at
-    `
-
-	row := r.db.QueryRow(
-		ctx,
-		query,
+		INSERT INTO users (name, avatar_url, email, bio)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, avatar_url, email, bio,
+		          is_verified, is_available_today,
+		          last_active_at, created_at
+	`
+	row := dbtx.Extract(ctx, r.db).QueryRow(ctx, query,
 		user.Name,
 		user.AvatarURL,
 		user.Email,

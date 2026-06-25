@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/vsayfb/gig-platform-core-service/pkg/dbtx"
 )
 
 type UserAuthRepository interface {
@@ -25,16 +26,18 @@ func NewUserAuthRepository(db *pgxpool.Pool) UserAuthRepository {
 
 func (r *userAuthRepository) Save(ctx context.Context, auth *UserAuth) (*UserAuth, error) {
 	query := `
-        INSERT INTO user_auth (user_id, google_sub, phone_encrypted, phone_hmac)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, user_id, google_sub, phone_encrypted, phone_hmac, created_at
-    `
-	row := r.db.QueryRow(ctx, query,
+		INSERT INTO user_auth (user_id, google_sub, phone_encrypted, phone_hmac)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, user_id, google_sub, phone_encrypted, phone_hmac, created_at
+	`
+
+	row := dbtx.Extract(ctx, r.db).QueryRow(ctx, query,
 		auth.UserID,
 		auth.GoogleSub,
 		auth.PhoneEncrypted,
 		auth.PhoneHMAC,
 	)
+
 	return scanUserAuth(row)
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/vsayfb/gig-platform-core-service/pkg/dbtx"
 )
 
 var ErrReputationNotFound = errors.New("reputation not found")
@@ -46,7 +47,8 @@ const updateUserReputationQuery = `
 `
 
 func (r *userReputationRepository) Save(ctx context.Context, rep *UserReputation) (*UserReputation, error) {
-	row := r.db.QueryRow(ctx, saveUserReputationQuery, rep.UserID)
+	row := dbtx.Extract(ctx, r.db).QueryRow(ctx, saveUserReputationQuery, rep.UserID)
+
 	return r.scan(row)
 }
 
