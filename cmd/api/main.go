@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/vsayfb/gig-platform-core-service/config"
+	"github.com/vsayfb/gig-platform-core-service/internal/application"
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
 	"github.com/vsayfb/gig-platform-core-service/internal/gig"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
@@ -76,6 +77,7 @@ func main() {
 	locationRepo := location.NewUserLocationRepository(db)
 	reputationRepo := reputation.NewUserReputationRepository(db)
 	gigRepo := gig.NewRepository(db)
+	applicationRepo := application.NewRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	reputationService := reputation.NewUserReputationService(reputationRepo)
@@ -83,12 +85,14 @@ func main() {
 	categoryService := category.NewCategoryService(categoryRepo)
 	locationService := location.NewUserLocationService(locationRepo)
 	gigService := gig.NewGigService(gigRepo)
+	applicationService := application.NewService(applicationRepo, gigRepo)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
 	categoryHandler := category.NewCategoryHandler(categoryService)
 	locationHandler := location.NewUserLocationHandler(locationService)
 	gigHandler := gig.NewGigHandler(gigService)
+	applicationHandler := application.NewApplicationHandler(applicationService)
 
 	r := chi.NewRouter()
 
@@ -106,6 +110,7 @@ func main() {
 		authHandler.RegisterRoutes(r)
 		categoryHandler.RegisterRoutes(r, jwtManager)
 		gigHandler.RegisterRoutes(r, jwtManager)
+		applicationHandler.RegisterRoutes(r, jwtManager)
 
 	})
 
