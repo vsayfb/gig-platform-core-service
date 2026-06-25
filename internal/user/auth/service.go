@@ -9,6 +9,7 @@ import (
 
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/reputation"
+	"github.com/vsayfb/gig-platform-core-service/pkg/dbtx"
 	"github.com/vsayfb/gig-platform-core-service/pkg/google"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 )
@@ -83,36 +84,31 @@ func (s *UserAuthService) GoogleLogin(ctx context.Context, idToken string) (*Aut
 }
 
 func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (*user.User, error) {
-	tx, err := s.db.Begin(ctx)
+	var createdUser *user.User
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
+	err := dbtx.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		newUser := user.NewUser(claims.Name, claims.Email)
 
-	defer tx.Rollback(ctx)
+		u, err := s.userRepo.Save(txCtx, newUser)
 
-	newUser := user.NewUser(claims.Name, claims.Email)
-	createdUser, err := s.userRepo.Save(ctx, newUser)
+		if err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
+		if _, err := s.authRepo.Save(txCtx, NewUserAuth(u.ID, claims.Sub, nil, nil)); err != nil {
+			return fmt.Errorf("failed to create user auth: %w", err)
+		}
 
-	authRecord := NewUserAuth(createdUser.ID, claims.Sub, nil, nil)
+		if _, err := s.reputationService.Initialize(txCtx, u.ID); err != nil {
+			return fmt.Errorf("failed to initialize reputation: %w", err)
+		}
 
-	if _, err := s.authRepo.Save(ctx, authRecord); err != nil {
-		return nil, fmt.Errorf("failed to create user auth: %w", err)
-	}
+		createdUser = u
 
-	if _, err := s.reputationService.Initialize(ctx, createdUser.ID); err != nil {
-		return nil, fmt.Errorf("failed to initialize reputation: %w", err)
-	}
+		return nil
+	})
 
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return createdUser, nil
+	return createdUser, err
 }
 
 func (s *UserAuthService) issueToken(u *user.User) (*AuthResult, error) {
