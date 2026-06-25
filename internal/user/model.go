@@ -7,15 +7,15 @@ import (
 )
 
 type User struct {
-	ID               uuid.UUID
-	Name             string
-	Email            string
-	AvatarURL        string
-	Bio              string
-	IsVerified       bool
-	IsAvailableToday bool
-	LastActiveAt     time.Time
-	CreatedAt        time.Time
+	ID               uuid.UUID `json:"id"`
+	Name             string    `json:"name"`
+	Email            string    `json:"email"`
+	AvatarURL        string    `json:"avatar_url"`
+	Bio              string    `json:"bio"`
+	IsVerified       bool      `json:"is_verified"`
+	IsAvailableToday bool      `json:"is_available_today"`
+	LastActiveAt     time.Time `json:"last_active_at"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 func NewUser(name, email string) *User {

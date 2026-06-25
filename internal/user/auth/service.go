@@ -15,7 +15,7 @@ import (
 )
 
 type AuthResult struct {
-	Token string
+	Token string `json:"id"`
 	User  *user.User
 }
 
