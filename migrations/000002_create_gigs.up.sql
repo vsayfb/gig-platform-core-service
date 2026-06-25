@@ -1,5 +1,4 @@
 CREATE TYPE gig_duration_type AS ENUM ('DAILY', 'WEEKLY', 'MONTHLY');
-CREATE TYPE gig_pay_type AS ENUM ('FIXED', 'HOURLY');
 CREATE TYPE gig_status AS ENUM ('OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
 
 CREATE TABLE gigs (
@@ -13,9 +12,6 @@ CREATE TABLE gigs (
     end_date            DATE NOT NULL,
     slots               INT NOT NULL DEFAULT 1,
     status              gig_status NOT NULL DEFAULT 'OPEN',
-    pay_amount          NUMERIC(10, 2) NOT NULL,
-    pay_currency        VARCHAR(3) NOT NULL DEFAULT 'TRY',
-    pay_type            gig_pay_type NOT NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at          TIMESTAMPTZ NOT NULL
 );
