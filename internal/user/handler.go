@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vsayfb/gig-platform-core-service/pkg/httputil"
+	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 )
 
 type UserHandler struct {
@@ -61,7 +62,12 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("userID").(uuid.UUID)
+	userID, err := middleware.UserIDFromContext(r.Context())
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	updated, err := h.service.UpdateProfile(r.Context(), &User{
 		ID:               userID,
@@ -72,7 +78,6 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httputil.WriteError(w, http.StatusInternalServerError, "failed to update profile")
-
 		return
 	}
 
@@ -80,7 +85,12 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(uuid.UUID)
+	userID, err := middleware.UserIDFromContext(r.Context())
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	if err := h.service.Delete(r.Context(), userID); err != nil {
 		slog.Error("failed to delete user", "err", err)

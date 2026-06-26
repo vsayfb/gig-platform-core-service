@@ -73,9 +73,10 @@ func (h *ReviewHandler) Submit(w http.ResponseWriter, r *http.Request) {
 
 // GET /users/:userID/reviews
 func (h *ReviewHandler) ListByUser(w http.ResponseWriter, r *http.Request) {
-	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
+	userID, err := middleware.UserIDFromContext(r.Context())
+
 	if err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, "invalid user id")
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
