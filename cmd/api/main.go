@@ -113,7 +113,7 @@ func main() {
 
 	}
 
-	r.Use(chimiddleware.Logger)
+	r.Use(middleware.StructuredLogger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
 
