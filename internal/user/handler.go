@@ -38,6 +38,9 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.GetByID(r.Context(), id)
 
 	if err != nil {
+
+		slog.Warn("user not found", "err", err)
+
 		httputil.WriteError(w, http.StatusNotFound, "user not found")
 
 		return
@@ -77,7 +80,10 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		httputil.WriteError(w, http.StatusInternalServerError, "failed to update profile")
+
+		slog.Error("failed to update profile", "err", err)
+
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal server error.")
 		return
 	}
 
@@ -88,14 +94,14 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 
 	if err != nil {
-		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), userID); err != nil {
 		slog.Error("failed to delete user", "err", err)
 
-		httputil.WriteError(w, http.StatusInternalServerError, "failed to delete user")
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal server error.")
 
 		return
 	}

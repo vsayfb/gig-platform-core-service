@@ -2,6 +2,7 @@ package category
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -32,6 +33,8 @@ func (h *CategoryHandler) ListActive(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.service.ListActive(r.Context())
 
 	if err != nil {
+		slog.Error("internal server error", "err", err)
+
 		httputil.WriteError(w, http.StatusInternalServerError, "failed to fetch categories")
 		return
 	}
@@ -62,6 +65,8 @@ func (h *CategoryHandler) Suggest(w http.ResponseWriter, r *http.Request) {
 		case ErrCategoryAlreadyExists:
 			httputil.WriteError(w, http.StatusConflict, "category already exists")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "failed to suggest category")
 		}
 

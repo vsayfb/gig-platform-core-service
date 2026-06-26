@@ -2,6 +2,7 @@ package gig
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -77,6 +78,8 @@ func (h *Handler) Feed(w http.ResponseWriter, r *http.Request) {
 	feed, err := h.service.Feed(r.Context(), p)
 
 	if err != nil {
+		slog.Error("internal server error", "err", err)
+
 		httputil.WriteError(w, http.StatusInternalServerError, "feed unavailable")
 		return
 	}
@@ -98,6 +101,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusNotFound, "gig not found")
 			return
 		}
+		slog.Error("internal server error", "err", err)
+
 		httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -113,8 +118,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Debug("new gig", "create", r.Body)
+
 	var in CreateGigInput
 	if err := httputil.DecodeJSON(r, &in); err != nil {
+
+		slog.Warn("create gig - invalid body", "err", err)
+
 		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -122,9 +132,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	detail, err := h.service.Create(r.Context(), posterID, in)
 	if err != nil {
 		if errors.Is(err, ErrInvalidInput) {
+
+			slog.Warn("create gig - invalid input", "err", err)
+
 			httputil.WriteError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
+
+		slog.Error("could not create gig", "err", err)
+
 		httputil.WriteError(w, http.StatusInternalServerError, "could not create gig")
 		return
 	}
@@ -165,6 +181,8 @@ func (h *Handler) Edit(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrGigNotEditable):
 			httputil.WriteError(w, http.StatusConflict, "gig is not editable in its current status")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "could not edit gig")
 		}
 		return
@@ -196,6 +214,8 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrGigNotCancellable):
 			httputil.WriteError(w, http.StatusConflict, "gig cannot be cancelled in its current status")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "could not cancel gig")
 		}
 		return

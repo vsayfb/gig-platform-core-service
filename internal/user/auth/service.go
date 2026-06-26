@@ -78,7 +78,7 @@ func (s *UserAuthService) GoogleLogin(ctx context.Context, idToken string) (*Aut
 		return nil, fmt.Errorf("failed to register user: %w", err)
 	}
 
-	slog.Info("new user registered", "user_id", u.ID)
+	slog.Debug("new user registered", "user", u)
 
 	return s.issueToken(u)
 }

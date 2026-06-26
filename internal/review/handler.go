@@ -2,6 +2,7 @@ package review
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -63,6 +64,8 @@ func (h *ReviewHandler) Submit(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidRating):
 			httputil.WriteError(w, http.StatusUnprocessableEntity, "rating must be between 1 and 5")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "could not submit review")
 		}
 		return
@@ -82,6 +85,8 @@ func (h *ReviewHandler) ListByUser(w http.ResponseWriter, r *http.Request) {
 
 	reviews, err := h.svc.ListByUser(r.Context(), userID)
 	if err != nil {
+		slog.Error("internal server error", "err", err)
+
 		httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}

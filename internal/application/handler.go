@@ -59,6 +59,8 @@ func (h *ApplicationHandler) ListByGig(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, gig.ErrNotPoster):
 			httputil.WriteError(w, http.StatusForbidden, "not the poster")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -89,6 +91,8 @@ func (h *ApplicationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNotApplicant):
 			httputil.WriteError(w, http.StatusForbidden, "forbidden")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -126,6 +130,8 @@ func (h *ApplicationHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrAlreadyApplied):
 			httputil.WriteError(w, http.StatusConflict, "already applied to this gig")
 		default:
+			slog.Error("internal server error", "err", err)
+
 			httputil.WriteError(w, http.StatusInternalServerError, "could not apply")
 		}
 		return
