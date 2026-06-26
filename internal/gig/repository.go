@@ -18,13 +18,12 @@ var (
 
 const (
 	queryInsertGig = `
-		INSERT INTO gigs (
-			id, poster_id, title, description_raw, description_clean,
-			duration_type, start_date, end_date, slots, status,
-			created_at, expires_at
-		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
-		)`
+		INSERT INTO gigs (id, poster_id, title, description_raw, description_clean, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+	queryInsertGigDetails = `
+		INSERT INTO gig_details (gig_id, duration_type, start_date, end_date, pay_amount, pay_currency, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 	queryInsertGigLocation = `
 		INSERT INTO gig_locations (id, gig_id, location, city, district)
@@ -35,10 +34,12 @@ const (
 		ON CONFLICT DO NOTHING`
 
 	queryFindByID = `
-		SELECT id, poster_id, title, description_raw, description_clean,
-		       duration_type, start_date, end_date, slots, status,
-		       created_at, expires_at
+		SELECT id, poster_id, title, description_raw, description_clean, status, created_at
 		FROM gigs WHERE id = $1`
+
+	queryFindDetailsByGigID = `
+		SELECT gig_id, duration_type, start_date, end_date, pay_amount, pay_currency, expires_at
+		FROM gig_details WHERE gig_id = $1`
 
 	queryFindLocationByGigID = `
 		SELECT id, gig_id,
@@ -57,20 +58,23 @@ const (
 		UPDATE gigs SET
 			title             = COALESCE($2, title),
 			description_raw   = COALESCE($3, description_raw),
-			description_clean = COALESCE($4, description_clean),
-			duration_type     = COALESCE($5, duration_type),
-			start_date        = COALESCE($6, start_date),
-			end_date          = COALESCE($7, end_date),
-			slots             = COALESCE($8, slots),
-			expires_at        = COALESCE($9, expires_at)
+			description_clean = COALESCE($4, description_clean)
 		WHERE id = $1 AND status = 'OPEN'`
 
-	// Feed query: location-sorted, keyset-paginated, with optional filters.
-	// Filters applied dynamically in FindFeed.
+	queryUpsertGigDetails = `
+		INSERT INTO gig_details (gig_id, duration_type, start_date, end_date, pay_amount, pay_currency, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (gig_id) DO UPDATE SET
+			duration_type = COALESCE(EXCLUDED.duration_type, gig_details.duration_type),
+			start_date    = COALESCE(EXCLUDED.start_date,    gig_details.start_date),
+			end_date      = COALESCE(EXCLUDED.end_date,      gig_details.end_date),
+			pay_amount    = COALESCE(EXCLUDED.pay_amount,    gig_details.pay_amount),
+			pay_currency  = COALESCE(EXCLUDED.pay_currency,  gig_details.pay_currency),
+			expires_at    = COALESCE(EXCLUDED.expires_at,    gig_details.expires_at)`
+
 	queryFeedBase = `
-		SELECT g.id, g.poster_id, g.title, g.description_raw, g.description_clean,
-		       g.duration_type, g.start_date, g.end_date, g.slots, g.status,
-		       g.created_at, g.expires_at,
+		SELECT g.id, g.poster_id, g.title, g.description_raw, g.description_clean, g.status, g.created_at,
+		       d.gig_id, d.duration_type, d.start_date, d.end_date, d.pay_amount, d.pay_currency, d.expires_at,
 		       gl.id AS loc_id,
 		       ST_Y(gl.location::geometry) AS lat,
 		       ST_X(gl.location::geometry) AS lng,
@@ -78,16 +82,17 @@ const (
 		       ST_Distance(gl.location, ST_SetSRID(ST_MakePoint($2,$1),4326)::geography) AS distance_m
 		FROM gigs g
 		JOIN gig_locations gl ON gl.gig_id = g.id
+		LEFT JOIN gig_details d ON d.gig_id = g.id
 		WHERE g.status = 'OPEN'
 		  AND ST_DWithin(gl.location, ST_SetSRID(ST_MakePoint($2,$1),4326)::geography, $3)`
 )
 
 type GigRepository interface {
-	Save(ctx context.Context, g *Gig, loc *GigLocation, categoryIDs []uuid.UUID) error
-	FindByID(ctx context.Context, id uuid.UUID) (*GigDetail, error)
+	Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation, categoryIDs []uuid.UUID) error
+	FindByID(ctx context.Context, id uuid.UUID) (*GigFull, error)
 	Update(ctx context.Context, id uuid.UUID, posterID uuid.UUID, in UpdateGigInput) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status GigStatus) error
-	FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, error)
+	FindFeed(ctx context.Context, p FeedParams) ([]*GigFull, error)
 }
 
 type repository struct {
@@ -98,25 +103,34 @@ func NewRepository(db *pgxpool.Pool) GigRepository {
 	return &repository{db: db}
 }
 
-func (r *repository) Save(ctx context.Context, g *Gig, loc *GigLocation, categoryIDs []uuid.UUID) error {
+func (r *repository) Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation, categoryIDs []uuid.UUID) error {
 	db := dbtx.Extract(ctx, r.db)
 
 	_, err := db.Exec(ctx, queryInsertGig,
-		g.ID, g.PosterID, g.Title, g.DescriptionRaw, g.DescriptionClean,
-		g.DurationType, g.StartDate, g.EndDate, g.Slots, g.Status,
-		g.CreatedAt, g.ExpiresAt,
+		g.ID, g.PosterID, g.Title, g.DescriptionRaw, g.DescriptionClean, g.Status, g.CreatedAt,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(ctx, queryInsertGigLocation,
-		loc.ID, loc.GigID, loc.Lng, loc.Lat, loc.City, loc.District,
-	)
+	if details != nil {
+		_, err = db.Exec(ctx, queryInsertGigDetails,
+			g.ID, details.DurationType, details.StartDate, details.EndDate,
+			details.PayAmount, details.PayCurrency, details.ExpiresAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
 
-	if err != nil {
-		return err
+	if loc != nil {
+		_, err = db.Exec(ctx, queryInsertGigLocation,
+			loc.ID, loc.GigID, loc.Lng, loc.Lat, loc.City, loc.District,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, catID := range categoryIDs {
@@ -128,13 +142,11 @@ func (r *repository) Save(ctx context.Context, g *Gig, loc *GigLocation, categor
 	return nil
 }
 
-func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*GigDetail, error) {
+func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*GigFull, error) {
 	db := dbtx.Extract(ctx, r.db)
 
 	row := db.QueryRow(ctx, queryFindByID, id)
-
-	g, err := r.scan(row)
-
+	g, err := r.scanGig(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrGigNotFound
@@ -142,47 +154,48 @@ func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*GigDetail, er
 		return nil, err
 	}
 
-	detail := &GigDetail{Gig: *g}
+	full := &GigFull{Gig: *g}
 
-	// location
-	locRow := db.QueryRow(ctx, queryFindLocationByGigID, id)
-
-	loc := &GigLocation{}
-
-	err = locRow.Scan(&loc.ID, &loc.GigID, &loc.Lat, &loc.Lng, &loc.City, &loc.District)
-
+	// details
+	detRow := db.QueryRow(ctx, queryFindDetailsByGigID, id)
+	det, err := r.scanDetails(detRow)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
-
 	if err == nil {
-		detail.Location = loc
+		full.Details = det
+	}
+
+	// location
+	locRow := db.QueryRow(ctx, queryFindLocationByGigID, id)
+	loc, err := r.scanLocation(locRow)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	if err == nil {
+		full.Location = loc
 	}
 
 	// categories
 	rows, err := db.Query(ctx, queryFindCategoriesByGigID, id)
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
-
 	for rows.Next() {
 		var catID uuid.UUID
 		if err := rows.Scan(&catID); err != nil {
 			return nil, err
 		}
-		detail.Categories = append(detail.Categories, catID)
+		full.Categories = append(full.Categories, catID)
 	}
 
-	return detail, nil
+	return full, nil
 }
 
 func (r *repository) Update(ctx context.Context, id uuid.UUID, posterID uuid.UUID, in UpdateGigInput) error {
 	db := dbtx.Extract(ctx, r.db)
 
-	// Verify ownership first.
 	var storedPosterID uuid.UUID
 	err := db.QueryRow(ctx, `SELECT poster_id FROM gigs WHERE id = $1`, id).Scan(&storedPosterID)
 	if err != nil {
@@ -195,43 +208,48 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, posterID uuid.UUI
 		return ErrNotPoster
 	}
 
-	_, err = db.Exec(ctx, queryUpdateGig,
-		id,
-		in.Title,
-		in.DescriptionRaw,
-		in.DescriptionClean,
-		in.DurationType,
-		in.StartDate,
-		in.EndDate,
-		in.Slots,
-		in.ExpiresAt,
-	)
-	return err
+	_, err = db.Exec(ctx, queryUpdateGig, id, in.Title, in.DescriptionRaw, in.DescriptionClean)
+	if err != nil {
+		return err
+	}
+
+	// Upsert details if any optional field was provided.
+	if in.DurationType != nil || in.StartDate != nil || in.EndDate != nil ||
+		in.PayAmount != nil || in.PayCurrency != nil || in.ExpiresAt != nil {
+		_, err = db.Exec(ctx, queryUpsertGigDetails,
+			id, in.DurationType, in.StartDate, in.EndDate,
+			in.PayAmount, in.PayCurrency, in.ExpiresAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *repository) UpdateStatus(ctx context.Context, id uuid.UUID, status GigStatus) error {
-	db := dbtx.Extract(ctx, r.db)
-
-	_, err := db.Exec(ctx, queryUpdateGigStatus, id, status)
-
+	_, err := dbtx.Extract(ctx, r.db).Exec(ctx, queryUpdateGigStatus, id, status)
 	return err
 }
 
-func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, error) {
+func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigFull, error) {
 	db := dbtx.Extract(ctx, r.db)
 
-	// Build query dynamically on top of base.
 	q := queryFeedBase
-
 	args := []any{p.Lat, p.Lng, p.RadiusMeters}
 	argIdx := 4
 
 	if p.DurationType != nil {
-		q += ` AND g.duration_type = $` + itoa(argIdx)
+		q += ` AND d.duration_type = $` + itoa(argIdx)
 		args = append(args, *p.DurationType)
 		argIdx++
 	}
-
+	if p.MinPay != nil {
+		q += ` AND d.pay_amount >= $` + itoa(argIdx)
+		args = append(args, *p.MinPay)
+		argIdx++
+	}
 	if p.CategoryID != nil {
 		q += ` AND EXISTS (
 			SELECT 1 FROM gig_categories gc
@@ -239,7 +257,6 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, 
 		args = append(args, *p.CategoryID)
 		argIdx++
 	}
-
 	if p.Cursor != nil {
 		q += ` AND g.created_at < $` + itoa(argIdx)
 		args = append(args, *p.Cursor)
@@ -247,48 +264,44 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, 
 	}
 
 	_ = argIdx
-
 	q += ` ORDER BY distance_m ASC, g.created_at DESC LIMIT $` + itoa(len(args)+1)
-
 	args = append(args, p.Limit)
 
 	rows, err := db.Query(ctx, q, args...)
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
-	var feed []*GigDetail
-
+	var feed []*GigFull
 	for rows.Next() {
 		g := &Gig{}
-
+		det := &GigDetails{}
 		loc := &GigLocation{}
-
 		var distanceM float64
 
 		err := rows.Scan(
-			&g.ID, &g.PosterID, &g.Title, &g.DescriptionRaw, &g.DescriptionClean,
-			&g.DurationType, &g.StartDate, &g.EndDate, &g.Slots, &g.Status,
-			&g.CreatedAt, &g.ExpiresAt,
+			&g.ID, &g.PosterID, &g.Title, &g.DescriptionRaw, &g.DescriptionClean, &g.Status, &g.CreatedAt,
+			&det.GigID, &det.DurationType, &det.StartDate, &det.EndDate, &det.PayAmount, &det.PayCurrency, &det.ExpiresAt,
 			&loc.ID, &loc.Lat, &loc.Lng, &loc.City, &loc.District,
 			&distanceM,
 		)
-
 		if err != nil {
 			return nil, err
 		}
-
 		loc.GigID = g.ID
 
-		feed = append(feed, &GigDetail{Gig: *g, Location: loc})
+		full := &GigFull{Gig: *g, Location: loc}
+		// Only attach details if the LEFT JOIN matched.
+		if det.GigID != uuid.Nil {
+			full.Details = det
+		}
+		feed = append(feed, full)
 	}
 
-	// Fetch categories for each gig in feed (batch would be better at scale, fine for now).
-	for _, detail := range feed {
-		catRows, err := db.Query(ctx, queryFindCategoriesByGigID, detail.Gig.ID)
+	// Fetch categories per gig.
+	for _, full := range feed {
+		catRows, err := db.Query(ctx, queryFindCategoriesByGigID, full.Gig.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -298,7 +311,7 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, 
 				catRows.Close()
 				return nil, err
 			}
-			detail.Categories = append(detail.Categories, catID)
+			full.Categories = append(full.Categories, catID)
 		}
 		catRows.Close()
 	}
@@ -306,12 +319,10 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigDetail, 
 	return feed, nil
 }
 
-func (r *repository) scan(row pgx.Row) (*Gig, error) {
+func (r *repository) scanGig(row pgx.Row) (*Gig, error) {
 	g := &Gig{}
 	err := row.Scan(
-		&g.ID, &g.PosterID, &g.Title, &g.DescriptionRaw, &g.DescriptionClean,
-		&g.DurationType, &g.StartDate, &g.EndDate, &g.Slots, &g.Status,
-		&g.CreatedAt, &g.ExpiresAt,
+		&g.ID, &g.PosterID, &g.Title, &g.DescriptionRaw, &g.DescriptionClean, &g.Status, &g.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -319,7 +330,27 @@ func (r *repository) scan(row pgx.Row) (*Gig, error) {
 	return g, nil
 }
 
-// itoa converts int to string for query building (avoids fmt import).
+func (r *repository) scanDetails(row pgx.Row) (*GigDetails, error) {
+	d := &GigDetails{}
+	err := row.Scan(
+		&d.GigID, &d.DurationType, &d.StartDate, &d.EndDate,
+		&d.PayAmount, &d.PayCurrency, &d.ExpiresAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (r *repository) scanLocation(row pgx.Row) (*GigLocation, error) {
+	l := &GigLocation{}
+	err := row.Scan(&l.ID, &l.GigID, &l.Lat, &l.Lng, &l.City, &l.District)
+	if err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

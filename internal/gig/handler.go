@@ -15,15 +15,15 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 )
 
-type Handler struct {
-	service *GigService
+type GigHandler struct {
+	svc *GigService
 }
 
-func NewGigHandler(svc *GigService) *Handler {
-	return &Handler{service: svc}
+func NewGigHandler(svc *GigService) *GigHandler {
+	return &GigHandler{svc: svc}
 }
 
-func (h *Handler) RegisterRoutes(r chi.Router, jwtManager *jwt.Manager) {
+func (h *GigHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.Manager) {
 	r.Get("/gigs", h.Feed)
 	r.Get("/gigs/{id}", h.Get)
 
@@ -35,33 +35,38 @@ func (h *Handler) RegisterRoutes(r chi.Router, jwtManager *jwt.Manager) {
 	})
 }
 
-func (h *Handler) Feed(w http.ResponseWriter, r *http.Request) {
+// GET /gigs
+func (h *GigHandler) Feed(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	lat, err := strconv.ParseFloat(q.Get("lat"), 64)
-
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "lat is required")
 		return
 	}
-
 	lng, err := strconv.ParseFloat(q.Get("lng"), 64)
-
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "lng is required")
 		return
 	}
 
-	p := FeedParams{Lat: lat, Lng: lng, RadiusMeters: 50000}
+	p := FeedParams{Lat: lat, Lng: lng, RadiusMeters: RADIUS_METERS}
 
 	if v := q.Get("radius"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			p.RadiusMeters = f
 		}
 	}
+
 	if v := q.Get("duration_type"); v != "" {
 		dt := DurationType(v)
 		p.DurationType = &dt
+	}
+
+	if v := q.Get("min_pay"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			p.MinPay = &f
+		}
 	}
 
 	if v := q.Get("category_id"); v != "" {
@@ -69,13 +74,14 @@ func (h *Handler) Feed(w http.ResponseWriter, r *http.Request) {
 			p.CategoryID = &id
 		}
 	}
+
 	if v := q.Get("cursor"); v != "" {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			p.Cursor = &t
 		}
 	}
 
-	feed, err := h.service.Feed(r.Context(), p)
+	feed, err := h.svc.Feed(r.Context(), p)
 
 	if err != nil {
 		slog.Error("internal server error", "err", err)
@@ -87,7 +93,8 @@ func (h *Handler) Feed(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, feed)
 }
 
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+// GET /gigs/:id
+func (h *GigHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 
 	if err != nil {
@@ -95,7 +102,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	detail, err := h.service.Get(r.Context(), id)
+	detail, err := h.svc.Get(r.Context(), id)
+
 	if err != nil {
 		if errors.Is(err, ErrGigNotFound) {
 			httputil.WriteError(w, http.StatusNotFound, "gig not found")
@@ -110,7 +118,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, detail)
 }
 
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+// POST /gigs
+func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	posterID, err := middleware.UserIDFromContext(r.Context())
 
 	if err != nil {
@@ -118,28 +127,21 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Debug("new gig", "create", r.Body)
-
 	var in CreateGigInput
+
 	if err := httputil.DecodeJSON(r, &in); err != nil {
-
-		slog.Warn("create gig - invalid body", "err", err)
-
 		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	detail, err := h.service.Create(r.Context(), posterID, in)
+	detail, err := h.svc.Create(r.Context(), posterID, in)
+
 	if err != nil {
 		if errors.Is(err, ErrInvalidInput) {
-
-			slog.Warn("create gig - invalid input", "err", err)
-
 			httputil.WriteError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
-
-		slog.Error("could not create gig", "err", err)
+		slog.Error("internal server error", "err", err)
 
 		httputil.WriteError(w, http.StatusInternalServerError, "could not create gig")
 		return
@@ -148,30 +150,27 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusCreated, detail)
 }
 
-func (h *Handler) Edit(w http.ResponseWriter, r *http.Request) {
+// PUT /gigs/:id
+func (h *GigHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	posterID, err := middleware.UserIDFromContext(r.Context())
-
 	if err != nil {
 		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	gigID, err := uuid.Parse(chi.URLParam(r, "id"))
-
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "invalid gig id")
 		return
 	}
 
 	var in UpdateGigInput
-
 	if err := httputil.DecodeJSON(r, &in); err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	detail, err := h.service.Edit(r.Context(), gigID, posterID, in)
-
+	detail, err := h.svc.Edit(r.Context(), gigID, posterID, in)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrGigNotFound):
@@ -191,9 +190,9 @@ func (h *Handler) Edit(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, detail)
 }
 
-func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+// DELETE /gigs/:id
+func (h *GigHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	callerID, err := middleware.UserIDFromContext(r.Context())
-
 	if err != nil {
 		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -205,7 +204,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.Cancel(r.Context(), gigID, callerID); err != nil {
+	if err := h.svc.Cancel(r.Context(), gigID, callerID); err != nil {
 		switch {
 		case errors.Is(err, ErrGigNotFound):
 			httputil.WriteError(w, http.StatusNotFound, "gig not found")

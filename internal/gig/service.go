@@ -10,9 +10,12 @@ import (
 )
 
 var (
-	ErrGigNotEditable    = errors.New("gig: only OPEN gigs can be edited")
-	ErrGigNotCancellable = errors.New("gig: only OPEN or IN_PROGRESS gigs can be cancelled")
-	ErrInvalidInput      = errors.New("gig: invalid input")
+	ErrGigNotEditable      = errors.New("gig: only OPEN gigs can be edited")
+	ErrGigNotCancellable   = errors.New("gig: only OPEN or IN_PROGRESS gigs can be cancelled")
+	ErrInvalidInput        = errors.New("gig: invalid input")
+	ErrLocationNotProvided = errors.New("gig: location is required")
+	ErrEndDateRequired     = errors.New("gig: end_date is required when start_date is provided")
+	ErrCurrencyRequired    = errors.New("gig: pay_currency is required when pay_amount is provided")
 )
 
 type GigService struct {
@@ -23,28 +26,24 @@ func NewGigService(repo GigRepository) *GigService {
 	return &GigService{repo: repo}
 }
 
-func (s *GigService) Feed(ctx context.Context, p FeedParams) ([]*GigDetail, error) {
+func (s *GigService) Feed(ctx context.Context, p FeedParams) ([]*GigFull, error) {
 	if p.RadiusMeters <= 0 {
-		p.RadiusMeters = 50000 // default 50km
+		p.RadiusMeters = 5000
 	}
-
 	if p.Limit <= 0 || p.Limit > 50 {
 		p.Limit = 20
 	}
-
 	return s.repo.FindFeed(ctx, p)
 }
 
-func (s *GigService) Get(ctx context.Context, id uuid.UUID) (*GigDetail, error) {
+func (s *GigService) Get(ctx context.Context, id uuid.UUID) (*GigFull, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigDetail, error) {
-	if err := s.validateCreate(in); err != nil {
+func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigFull, error) {
+	if err := validateCreate(in); err != nil {
 		return nil, err
 	}
-
-	now := time.Now().UTC()
 
 	g := &Gig{
 		ID:               uuid.New(),
@@ -52,29 +51,40 @@ func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGi
 		Title:            in.Title,
 		DescriptionRaw:   in.DescriptionRaw,
 		DescriptionClean: in.DescriptionClean,
-		DurationType:     in.DurationType,
-		StartDate:        in.StartDate,
-		EndDate:          in.EndDate,
-		Slots:            in.Slots,
 		Status:           StatusOpen,
-		CreatedAt:        now,
-		ExpiresAt:        in.ExpiresAt,
+		CreatedAt:        time.Now().UTC(),
 	}
 
-	if g.Slots < 1 {
-		g.Slots = 1
+	var details *GigDetails
+
+	if in.DurationType != nil || in.StartDate != nil || in.EndDate != nil ||
+		in.PayAmount != nil || in.PayCurrency != nil || in.ExpiresAt != nil {
+		details = &GigDetails{
+			GigID:        g.ID,
+			DurationType: in.DurationType,
+			StartDate:    in.StartDate,
+			EndDate:      in.EndDate,
+			PayAmount:    in.PayAmount,
+			PayCurrency:  in.PayCurrency,
+			ExpiresAt:    in.ExpiresAt,
+		}
 	}
 
 	loc := &GigLocation{
 		ID:       uuid.New(),
 		GigID:    g.ID,
-		Lat:      in.Lat,
-		Lng:      in.Lng,
-		City:     in.City,
-		District: in.District,
+		Lat:      *in.Lat,
+		Lng:      *in.Lng,
+		City:     *in.City,
+		District: *in.District,
 	}
 
-	if err := s.repo.Save(ctx, g, loc, in.CategoryIDs); err != nil {
+	if in.ExpiresAt == nil {
+		t := time.Now().UTC().AddDate(0, 1, 0)
+		in.ExpiresAt = &t
+	}
+
+	if err := s.repo.Save(ctx, g, details, loc, in.CategoryIDs); err != nil {
 		slog.ErrorContext(ctx, "gig.Create: save failed", "err", err)
 		return nil, err
 	}
@@ -82,13 +92,12 @@ func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGi
 	return s.repo.FindByID(ctx, g.ID)
 }
 
-func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigDetail, error) {
-	detail, err := s.repo.FindByID(ctx, gigID)
+func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigFull, error) {
+	full, err := s.repo.FindByID(ctx, gigID)
 	if err != nil {
 		return nil, err
 	}
-
-	if detail.Gig.Status != StatusOpen {
+	if full.Gig.Status != StatusOpen {
 		return nil, ErrGigNotEditable
 	}
 
@@ -100,39 +109,38 @@ func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UU
 }
 
 func (s *GigService) Cancel(ctx context.Context, gigID uuid.UUID, callerID uuid.UUID) error {
-	detail, err := s.repo.FindByID(ctx, gigID)
-
+	full, err := s.repo.FindByID(ctx, gigID)
 	if err != nil {
 		return err
 	}
-
-	if detail.Gig.PosterID != callerID {
+	if full.Gig.PosterID != callerID {
 		return ErrNotPoster
 	}
-
-	if detail.Gig.Status != StatusOpen && detail.Gig.Status != StatusInProgress {
+	if full.Gig.Status != StatusOpen && full.Gig.Status != StatusInProgress {
 		return ErrGigNotCancellable
 	}
-
 	return s.repo.UpdateStatus(ctx, gigID, StatusCancelled)
 }
 
-func (s *GigService) validateCreate(in CreateGigInput) error {
-	if in.Title == "" {
+func validateCreate(in CreateGigInput) error {
+	if in.Title == "" || in.DescriptionRaw == "" {
 		return ErrInvalidInput
 	}
-
-	if in.DescriptionRaw == "" {
-		return ErrInvalidInput
+	if !validateLocation(in) {
+		return ErrLocationNotProvided
 	}
-
-	if in.DurationType != DurationDaily && in.DurationType != DurationWeekly && in.DurationType != DurationMonthly {
-		return ErrInvalidInput
+	if in.StartDate != nil && in.EndDate == nil {
+		return ErrEndDateRequired
 	}
-
-	if in.Lat == 0 && in.Lng == 0 {
-		return ErrInvalidInput
+	if in.PayAmount != nil && in.PayCurrency == nil {
+		return ErrCurrencyRequired
 	}
-
 	return nil
+}
+
+func validateLocation(in CreateGigInput) bool {
+	if in.Lat == nil || in.Lng == nil || in.City == nil || in.District == nil {
+		return false
+	}
+	return true
 }
