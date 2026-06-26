@@ -118,6 +118,7 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 
 	r.Group(func(r chi.Router) {
+		authHandler.RegisterRoutes(r)
 		categoryHandler.RegisterRoutes(r, jwtManager)
 		gigHandler.RegisterRoutes(r, jwtManager)
 		applicationHandler.RegisterRoutes(r, jwtManager)
@@ -126,7 +127,6 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(jwtManager))
-		authHandler.RegisterRoutes(r)
 		userHandler.RegisterRoutes(r)
 		locationHandler.RegisterRoutes(r)
 		contractHandler.RegisterRoutes(r)

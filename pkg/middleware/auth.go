@@ -42,7 +42,7 @@ func Auth(jwtManager *jwt.Manager) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "userID", userID)
+			ctx := context.WithValue(r.Context(), UserIDContextKey, userID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

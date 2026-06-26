@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/vsayfb/gig-platform-core-service/pkg/httputil"
+	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 )
 
 type UserLocationHandler struct {
@@ -32,14 +32,15 @@ func (h *UserLocationHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("userID").(uuid.UUID)
+	userID, err := middleware.UserIDFromContext(r.Context())
 
-	if !ok {
+	if err != nil {
 		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	loc, err := h.service.Upsert(r.Context(), userID, input.Lat, input.Lng)
+
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())
 		return
