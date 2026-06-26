@@ -29,7 +29,7 @@ type service struct {
 	gigRepo gig.GigRepository
 }
 
-func NewService(repo ApplicationRepository, gigRepo gig.GigRepository) ApplicationService {
+func NewApplicationService(repo ApplicationRepository, gigRepo gig.GigRepository) ApplicationService {
 	return &service{repo: repo, gigRepo: gigRepo}
 }
 

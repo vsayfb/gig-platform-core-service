@@ -15,7 +15,7 @@ type Handler struct {
 	svc ContractService
 }
 
-func NewHandler(svc ContractService) *Handler {
+func NewContractHandler(svc ContractService) *Handler {
 	return &Handler{svc: svc}
 }
 

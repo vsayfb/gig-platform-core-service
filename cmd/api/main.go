@@ -14,7 +14,9 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/config"
 	"github.com/vsayfb/gig-platform-core-service/internal/application"
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
+	"github.com/vsayfb/gig-platform-core-service/internal/contract"
 	"github.com/vsayfb/gig-platform-core-service/internal/gig"
+	"github.com/vsayfb/gig-platform-core-service/internal/review"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/location"
@@ -78,6 +80,8 @@ func main() {
 	reputationRepo := reputation.NewUserReputationRepository(db)
 	gigRepo := gig.NewRepository(db)
 	applicationRepo := application.NewRepository(db)
+	contractRepo := contract.NewConctractRepository(db)
+	reviewRepo := review.NewReviewRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	reputationService := reputation.NewUserReputationService(reputationRepo)
@@ -85,7 +89,9 @@ func main() {
 	categoryService := category.NewCategoryService(categoryRepo)
 	locationService := location.NewUserLocationService(locationRepo)
 	gigService := gig.NewGigService(gigRepo)
-	applicationService := application.NewService(applicationRepo, gigRepo)
+	applicationService := application.NewApplicationService(applicationRepo, gigRepo)
+	contractService := contract.NewContractService(contractRepo, applicationRepo, gigRepo, db)
+	reviewService := review.NewReviewService(reviewRepo, contractRepo, *reputationService, db)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
@@ -93,13 +99,18 @@ func main() {
 	locationHandler := location.NewUserLocationHandler(locationService)
 	gigHandler := gig.NewGigHandler(gigService)
 	applicationHandler := application.NewApplicationHandler(applicationService)
+	contractHandler := contract.NewContractHandler(contractService)
+	reviewHandler := review.NewReviewHandler(reviewService)
 
 	r := chi.NewRouter()
 
 	if cfg.Env != "production" {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins: []string{"*"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
 		}))
+
 	}
 
 	r.Use(chimiddleware.Logger)
@@ -107,18 +118,18 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 
 	r.Group(func(r chi.Router) {
-		authHandler.RegisterRoutes(r)
 		categoryHandler.RegisterRoutes(r, jwtManager)
 		gigHandler.RegisterRoutes(r, jwtManager)
 		applicationHandler.RegisterRoutes(r, jwtManager)
-
+		reviewHandler.RegisterRoutes(r, jwtManager)
 	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(jwtManager))
+		authHandler.RegisterRoutes(r)
 		userHandler.RegisterRoutes(r)
 		locationHandler.RegisterRoutes(r)
-
+		contractHandler.RegisterRoutes(r)
 	})
 
 	slog.Info("server ready", "port", cfg.Server.Port)
