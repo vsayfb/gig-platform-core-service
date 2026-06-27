@@ -10,7 +10,8 @@ type Config struct {
 	DB     DBConfig
 	JWT    JWTConfig
 	Google GoogleConfig
-	Server ServerConfig
+	REST   ServerConfig
+	GRPC   GRPCConfig
 	Env    string
 }
 
@@ -36,6 +37,10 @@ type ServerConfig struct {
 	Port string
 }
 
+type GRPCConfig struct {
+	Port string
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		DB: DBConfig{
@@ -53,8 +58,11 @@ func Load() (*Config, error) {
 		Google: GoogleConfig{
 			ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
 		},
-		Server: ServerConfig{
-			Port: os.Getenv("SERVER_PORT"),
+		REST: ServerConfig{
+			Port: os.Getenv("REST_PORT"),
+		},
+		GRPC: GRPCConfig{
+			Port: os.Getenv("GRPC_PORT"),
 		},
 		Env: os.Getenv("APP_ENV"),
 	}
@@ -85,8 +93,11 @@ func (c *Config) validate() error {
 	if c.Google.ClientID == "" {
 		return fmt.Errorf("GOOGLE_CLIENT_ID is required")
 	}
-	if c.Server.Port == "" {
-		return fmt.Errorf("SERVER_PORT is required")
+	if c.REST.Port == "" {
+		return fmt.Errorf("REST_PORT is required")
+	}
+	if c.GRPC.Port == "" {
+		return fmt.Errorf("GRPC_PORT is required")
 	}
 	return nil
 }

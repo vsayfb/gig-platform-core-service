@@ -23,6 +23,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/internal/user/reputation"
 	"github.com/vsayfb/gig-platform-core-service/pkg/database"
 	"github.com/vsayfb/gig-platform-core-service/pkg/google"
+	"github.com/vsayfb/gig-platform-core-service/pkg/grpcserver"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 	"github.com/vsayfb/gig-platform-core-service/pkg/logger"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
@@ -39,7 +40,7 @@ func main() {
 
 	logger.Init(cfg.Env)
 
-	slog.Info("starting server", "env", cfg.Env, "port", cfg.Server.Port)
+	slog.Info("starting app", "env", cfg.Env)
 
 	db, err := database.NewPool(ctx, cfg.DB.DSN())
 
@@ -102,6 +103,8 @@ func main() {
 	contractHandler := contract.NewContractHandler(contractService)
 	reviewHandler := review.NewReviewHandler(reviewService)
 
+	slog.Info("dependencies injected")
+
 	r := chi.NewRouter()
 
 	if cfg.Env != "production" {
@@ -132,9 +135,19 @@ func main() {
 		contractHandler.RegisterRoutes(r)
 	})
 
-	slog.Info("server ready", "port", cfg.Server.Port)
+	grpcserver := grpcserver.New(cfg.GRPC.Port)
 
-	if err := http.ListenAndServe(":"+cfg.Server.Port, r); err != nil {
-		log.Fatalf("server failed: %v", err)
+	go func() {
+		slog.Info("grpc ready", "port", cfg.GRPC.Port)
+
+		if err := grpcserver.Start(); err != nil {
+			log.Fatalf("grpc failed: %v", err)
+		}
+	}()
+
+	slog.Info("rest ready", "port", cfg.REST.Port)
+
+	if err := http.ListenAndServe(":"+cfg.REST.Port, r); err != nil {
+		log.Fatalf("rest failed: %v", err)
 	}
 }
