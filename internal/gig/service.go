@@ -28,11 +28,13 @@ func NewGigService(repo GigRepository) *GigService {
 
 func (s *GigService) Feed(ctx context.Context, p FeedParams) ([]*GigFull, error) {
 	if p.RadiusMeters <= 0 {
-		p.RadiusMeters = 5000
+		p.RadiusMeters = RADIUS_METERS
 	}
+
 	if p.Limit <= 0 || p.Limit > 50 {
 		p.Limit = 20
 	}
+
 	return s.repo.FindFeed(ctx, p)
 }
 
@@ -57,34 +59,22 @@ func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGi
 
 	var details *GigDetails
 
-	if in.DurationType != nil || in.StartDate != nil || in.EndDate != nil ||
-		in.PayAmount != nil || in.PayCurrency != nil || in.ExpiresAt != nil {
-		details = &GigDetails{
-			GigID:        g.ID,
-			DurationType: in.DurationType,
-			StartDate:    in.StartDate,
-			EndDate:      in.EndDate,
-			PayAmount:    in.PayAmount,
-			PayCurrency:  in.PayCurrency,
-			ExpiresAt:    in.ExpiresAt,
-		}
-	}
-
 	loc := &GigLocation{
-		ID:       uuid.New(),
-		GigID:    g.ID,
-		Lat:      *in.Lat,
-		Lng:      *in.Lng,
-		City:     *in.City,
-		District: *in.District,
+		ID:    uuid.New(),
+		GigID: g.ID,
+		Lat:   *in.Location.Lat,
+		Lng:   *in.Location.Lng,
+		City:  *in.Location.City,
 	}
 
-	if in.ExpiresAt == nil {
-		t := time.Now().UTC().AddDate(0, 1, 0)
-		in.ExpiresAt = &t
+	t := time.Now().UTC().AddDate(0, 1, 0)
+
+	details = &GigDetails{
+		GigID:     g.ID,
+		ExpiresAt: &t,
 	}
 
-	if err := s.repo.Save(ctx, g, details, loc, in.CategoryIDs); err != nil {
+	if err := s.repo.Save(ctx, g, details, loc); err != nil {
 		slog.ErrorContext(ctx, "gig.Create: save failed", "err", err)
 		return nil, err
 	}
@@ -94,9 +84,11 @@ func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGi
 
 func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigFull, error) {
 	full, err := s.repo.FindByID(ctx, gigID)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if full.Gig.Status != StatusOpen {
 		return nil, ErrGigNotEditable
 	}
@@ -126,20 +118,16 @@ func validateCreate(in CreateGigInput) error {
 	if in.Title == "" || in.DescriptionRaw == "" {
 		return ErrInvalidInput
 	}
-	if !validateLocation(in) {
+
+	if !validateLocation(*in.Location) {
 		return ErrLocationNotProvided
 	}
-	if in.StartDate != nil && in.EndDate == nil {
-		return ErrEndDateRequired
-	}
-	if in.PayAmount != nil && in.PayCurrency == nil {
-		return ErrCurrencyRequired
-	}
+
 	return nil
 }
 
-func validateLocation(in CreateGigInput) bool {
-	if in.Lat == nil || in.Lng == nil || in.City == nil || in.District == nil {
+func validateLocation(in CreateGigInputLoc) bool {
+	if in.Lat == nil || in.Lng == nil || in.City == nil {
 		return false
 	}
 	return true

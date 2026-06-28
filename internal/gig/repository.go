@@ -26,8 +26,8 @@ const (
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 	queryInsertGigLocation = `
-		INSERT INTO gig_locations (id, gig_id, location, city, district)
-		VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, $6)`
+		INSERT INTO gig_locations (id, gig_id, location, city)
+		VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)`
 
 	queryInsertGigCategory = `
 		INSERT INTO gig_categories (gig_id, category_id) VALUES ($1, $2)
@@ -45,7 +45,7 @@ const (
 		SELECT id, gig_id,
 		       ST_Y(location::geometry) AS lat,
 		       ST_X(location::geometry) AS lng,
-		       city, district
+		       city
 		FROM gig_locations WHERE gig_id = $1`
 
 	queryFindCategoriesByGigID = `
@@ -78,7 +78,7 @@ const (
 		       gl.id AS loc_id,
 		       ST_Y(gl.location::geometry) AS lat,
 		       ST_X(gl.location::geometry) AS lng,
-		       gl.city, gl.district,
+		       gl.city,
 		       ST_Distance(gl.location, ST_SetSRID(ST_MakePoint($2,$1),4326)::geography) AS distance_m
 		FROM gigs g
 		JOIN gig_locations gl ON gl.gig_id = g.id
@@ -88,7 +88,7 @@ const (
 )
 
 type GigRepository interface {
-	Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation, categoryIDs []uuid.UUID) error
+	Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation) error
 	FindByID(ctx context.Context, id uuid.UUID) (*GigFull, error)
 	Update(ctx context.Context, id uuid.UUID, posterID uuid.UUID, in UpdateGigInput) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status GigStatus) error
@@ -103,7 +103,7 @@ func NewRepository(db *pgxpool.Pool) GigRepository {
 	return &repository{db: db}
 }
 
-func (r *repository) Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation, categoryIDs []uuid.UUID) error {
+func (r *repository) Save(ctx context.Context, g *Gig, details *GigDetails, loc *GigLocation) error {
 	db := dbtx.Extract(ctx, r.db)
 
 	_, err := db.Exec(ctx, queryInsertGig,
@@ -126,15 +126,9 @@ func (r *repository) Save(ctx context.Context, g *Gig, details *GigDetails, loc 
 
 	if loc != nil {
 		_, err = db.Exec(ctx, queryInsertGigLocation,
-			loc.ID, loc.GigID, loc.Lng, loc.Lat, loc.City, loc.District,
+			loc.ID, loc.GigID, loc.Lng, loc.Lat, loc.City,
 		)
 		if err != nil {
-			return err
-		}
-	}
-
-	for _, catID := range categoryIDs {
-		if _, err = db.Exec(ctx, queryInsertGigCategory, g.ID, catID); err != nil {
 			return err
 		}
 	}
@@ -213,18 +207,6 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, posterID uuid.UUI
 		return err
 	}
 
-	// Upsert details if any optional field was provided.
-	if in.DurationType != nil || in.StartDate != nil || in.EndDate != nil ||
-		in.PayAmount != nil || in.PayCurrency != nil || in.ExpiresAt != nil {
-		_, err = db.Exec(ctx, queryUpsertGigDetails,
-			id, in.DurationType, in.StartDate, in.EndDate,
-			in.PayAmount, in.PayCurrency, in.ExpiresAt,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -237,6 +219,7 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigFull, er
 	db := dbtx.Extract(ctx, r.db)
 
 	q := queryFeedBase
+
 	args := []any{p.Lat, p.Lng, p.RadiusMeters}
 	argIdx := 4
 
@@ -273,7 +256,8 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigFull, er
 	}
 	defer rows.Close()
 
-	var feed []*GigFull
+	feed := make([]*GigFull, 0)
+
 	for rows.Next() {
 		g := &Gig{}
 		det := &GigDetails{}
@@ -283,7 +267,7 @@ func (r *repository) FindFeed(ctx context.Context, p FeedParams) ([]*GigFull, er
 		err := rows.Scan(
 			&g.ID, &g.PosterID, &g.Title, &g.DescriptionRaw, &g.DescriptionClean, &g.Status, &g.CreatedAt,
 			&det.GigID, &det.DurationType, &det.StartDate, &det.EndDate, &det.PayAmount, &det.PayCurrency, &det.ExpiresAt,
-			&loc.ID, &loc.Lat, &loc.Lng, &loc.City, &loc.District,
+			&loc.ID, &loc.Lat, &loc.Lng, &loc.City,
 			&distanceM,
 		)
 		if err != nil {
@@ -344,10 +328,13 @@ func (r *repository) scanDetails(row pgx.Row) (*GigDetails, error) {
 
 func (r *repository) scanLocation(row pgx.Row) (*GigLocation, error) {
 	l := &GigLocation{}
-	err := row.Scan(&l.ID, &l.GigID, &l.Lat, &l.Lng, &l.City, &l.District)
+
+	err := row.Scan(&l.ID, &l.GigID, &l.Lat, &l.Lng, &l.City)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return l, nil
 }
 

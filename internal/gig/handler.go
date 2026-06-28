@@ -40,11 +40,14 @@ func (h *GigHandler) Feed(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	lat, err := strconv.ParseFloat(q.Get("lat"), 64)
+
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "lat is required")
 		return
 	}
+
 	lng, err := strconv.ParseFloat(q.Get("lng"), 64)
+
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "lng is required")
 		return
@@ -55,23 +58,6 @@ func (h *GigHandler) Feed(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("radius"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			p.RadiusMeters = f
-		}
-	}
-
-	if v := q.Get("duration_type"); v != "" {
-		dt := DurationType(v)
-		p.DurationType = &dt
-	}
-
-	if v := q.Get("min_pay"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			p.MinPay = &f
-		}
-	}
-
-	if v := q.Get("category_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			p.CategoryID = &id
 		}
 	}
 
@@ -129,6 +115,8 @@ func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var in CreateGigInput
 
+	slog.Warn("received body ", "body", r.Body)
+
 	if err := httputil.DecodeJSON(r, &in); err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -141,6 +129,7 @@ func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
+
 		slog.Error("internal server error", "err", err)
 
 		httputil.WriteError(w, http.StatusInternalServerError, "could not create gig")

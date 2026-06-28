@@ -28,7 +28,6 @@ CREATE TABLE gig_locations (
     gig_id   UUID NOT NULL UNIQUE REFERENCES gigs(id) ON DELETE CASCADE,
     location GEOGRAPHY(Point, 4326) NOT NULL,
     city     TEXT,
-    district TEXT
 );
 
 CREATE INDEX idx_gig_locations_geoindex ON gig_locations USING GIST (location);

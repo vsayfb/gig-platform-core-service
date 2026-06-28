@@ -48,12 +48,11 @@ type GigDetails struct {
 }
 
 type GigLocation struct {
-	ID       uuid.UUID `json:"id"`
-	GigID    uuid.UUID `json:"gig_id"`
-	Lat      float64   `json:"lat"`
-	Lng      float64   `json:"lng"`
-	City     string    `json:"city"`
-	District string    `json:"district"`
+	ID    uuid.UUID `json:"id"`
+	GigID uuid.UUID `json:"gig_id"`
+	Lat   float64   `json:"lat"`
+	Lng   float64   `json:"lng"`
+	City  string    `json:"city"`
 }
 
 // GigFull is the complete view returned on GET /gigs/:id and feed items.
@@ -82,33 +81,23 @@ type CreateGigInput struct {
 	DescriptionRaw   string `json:"description_raw"`
 	DescriptionClean string `json:"description_clean"`
 
-	// Optional details
-	DurationType *DurationType `json:"duration_type,omitempty"`
-	StartDate    *time.Time    `json:"start_date,omitempty"`
-	EndDate      *time.Time    `json:"end_date,omitempty"`
-	PayAmount    *float64      `json:"pay_amount,omitempty"`
-	PayCurrency  *string       `json:"pay_currency,omitempty"`
-	ExpiresAt    *time.Time    `json:"expires_at,omitempty"`
+	Location *CreateGigInputLoc
+}
 
+type CreateGigInputLoc struct {
 	// Location
-	Lat      *float64 `json:"lat"`
-	Lng      *float64 `json:"lng"`
-	City     *string  `json:"city"`
-	District *string  `json:"district"`
+	Lat  *float64 `json:"lat"`
+	Lng  *float64 `json:"lng"`
+	City *string  `json:"city"`
+}
 
-	// Categories (optional)
+type GigOptionalCategories struct {
 	CategoryIDs []uuid.UUID `json:"category_ids,omitempty"`
 }
 
 // UpdateGigInput is the payload for PUT /gigs/:id.
 type UpdateGigInput struct {
-	Title            *string       `json:"title,omitempty"`
-	DescriptionRaw   *string       `json:"description_raw,omitempty"`
-	DescriptionClean *string       `json:"description_clean,omitempty"`
-	DurationType     *DurationType `json:"duration_type,omitempty"`
-	StartDate        *time.Time    `json:"start_date,omitempty"`
-	EndDate          *time.Time    `json:"end_date,omitempty"`
-	PayAmount        *float64      `json:"pay_amount,omitempty"`
-	PayCurrency      *string       `json:"pay_currency,omitempty"`
-	ExpiresAt        *time.Time    `json:"expires_at,omitempty"`
+	Title            *string `json:"title,omitempty"`
+	DescriptionRaw   *string `json:"description_raw,omitempty"`
+	DescriptionClean *string `json:"description_clean,omitempty"`
 }
