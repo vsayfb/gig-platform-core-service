@@ -2,10 +2,13 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type UserService struct {
 	userRepo UserRepository

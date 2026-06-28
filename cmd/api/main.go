@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -27,6 +30,8 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 	"github.com/vsayfb/gig-platform-core-service/pkg/logger"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
+
+	pb "github.com/vsayfb/gig-platform-protos/contracts"
 )
 
 func main() {
@@ -135,19 +140,50 @@ func main() {
 		contractHandler.RegisterRoutes(r)
 	})
 
-	grpcserver := grpcserver.New(cfg.GRPC.Port)
+	grpcHandler := grpcserver.NewGRPCHandler(userService)
+
+	grpcService := grpcserver.New(cfg.GRPC.Port)
+
+	pb.RegisterUserServiceServer(grpcService.GRPCServer(), grpcHandler)
+
+	go func() {
+		if err := grpcService.Start(); err != nil {
+			slog.Error("grpc failed", "err", err)
+			os.Exit(1)
+		}
+
+	}()
+
+	httpSrv := &http.Server{
+		Addr:    ":" + cfg.REST.Port,
+		Handler: r,
+	}
 
 	go func() {
 		slog.Info("grpc ready", "port", cfg.GRPC.Port)
+		slog.Info("rest ready", "port", cfg.REST.Port)
 
-		if err := grpcserver.Start(); err != nil {
-			log.Fatalf("grpc failed: %v", err)
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("rest failed", "err", err)
+			os.Exit(1)
 		}
 	}()
 
-	slog.Info("rest ready", "port", cfg.REST.Port)
+	quit := make(chan os.Signal, 1)
 
-	if err := http.ListenAndServe(":"+cfg.REST.Port, r); err != nil {
-		log.Fatalf("rest failed: %v", err)
-	}
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+
+	slog.Info("shutting down")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	defer cancel()
+
+	grpcService.Stop()
+
+	_ = httpSrv.Shutdown(ctx)
+
+	slog.Info("shutdown complete")
 }
