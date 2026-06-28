@@ -18,6 +18,12 @@ type User struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+type UserSummary struct {
+	ID        uuid.UUID
+	Name      string
+	AvatarURL string
+}
+
 func NewUser(name, email string) *User {
 	return &User{
 		Name:  name,

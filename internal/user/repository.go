@@ -14,6 +14,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	Update(ctx context.Context, user *User) (*User, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+	FindSummariesByIDs(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error)
 }
 
 type userRepository struct {
@@ -51,6 +52,42 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*User, err
 	row := r.db.QueryRow(ctx, query, id)
 
 	return scanUser(row)
+}
+
+func (r *userRepository) FindSummariesByIDs(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error) {
+	query := `
+		SELECT id, name, avatar_url
+		FROM users
+		WHERE id = ANY($1)
+	`
+
+	rows, err := r.db.Query(ctx, query, ids)
+	if err != nil {
+		return nil, fmt.Errorf("query user summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []*UserSummary
+
+	for rows.Next() {
+		summary := &UserSummary{}
+
+		if err := rows.Scan(
+			&summary.ID,
+			&summary.Name,
+			&summary.AvatarURL,
+		); err != nil {
+			return nil, fmt.Errorf("scan user summary: %w", err)
+		}
+
+		summaries = append(summaries, summary)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user summaries: %w", err)
+	}
+
+	return summaries, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, user *User) (*User, error) {

@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
-	github.com/vsayfb/gig-platform-protos v0.0.0-20260628000755-754626d7a22f
+	github.com/vsayfb/gig-platform-protos v1.1.0
 	google.golang.org/grpc v1.81.1
 )
 

@@ -28,6 +28,10 @@ func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*User, error) 
 	return user, nil
 }
 
+func (s *UserService) GetSummaries(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error) {
+	return s.userRepo.FindSummariesByIDs(ctx, ids)
+}
+
 func (s *UserService) UpdateProfile(ctx context.Context, user *User) (*User, error) {
 	existing, err := s.userRepo.FindByID(ctx, user.ID)
 
