@@ -29,3 +29,7 @@ services:
 volumes:
   postgres_data:
 
+networks:
+  default:
+    external: true
+    name: gig-platform
