@@ -1,4 +1,7 @@
-.PHONY: run up down restart logs build rebuild clean freshstart
+.PHONY: run up down restart logs build rebuild clean fresh
+
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
 
 run: up
 
@@ -23,9 +26,9 @@ logs:
 clean:
 	docker compose down -v --remove-orphans
 	docker image prune -f
+	docker builder prune -f
 
 fresh:
 	docker compose down -v --remove-orphans
-	docker rmi gig-platform-core-service-api:latest 2>/dev/null || true
-	docker volume rm gig-platform-core-service_postgres_data 2>/dev/null || true
-	docker compose up -d --build
+	docker compose build --no-cache
+	docker compose up -d --force-recreate
