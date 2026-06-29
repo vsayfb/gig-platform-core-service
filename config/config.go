@@ -13,6 +13,7 @@ type Config struct {
 	REST   ServerConfig
 	GRPC   GRPCConfig
 	Env    string
+	SQS    SQS
 }
 
 type DBConfig struct {
@@ -41,6 +42,11 @@ type GRPCConfig struct {
 	Port string
 }
 
+type SQS struct {
+	QueueURL string
+	BaseURL  string
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		DB: DBConfig{
@@ -63,6 +69,10 @@ func Load() (*Config, error) {
 		},
 		GRPC: GRPCConfig{
 			Port: os.Getenv("GRPC_PORT"),
+		},
+		SQS: SQS{
+			QueueURL: os.Getenv("SQS_QUEUE_URL"),
+			BaseURL:  os.Getenv("SQS_QUEUE_URL"),
 		},
 		Env: os.Getenv("APP_ENV"),
 	}
@@ -98,6 +108,9 @@ func (c *Config) validate() error {
 	}
 	if c.GRPC.Port == "" {
 		return fmt.Errorf("GRPC_PORT is required")
+	}
+	if c.SQS.QueueURL == "" || c.SQS.BaseURL == "" {
+		return fmt.Errorf("SQS credentials are required")
 	}
 	return nil
 }

@@ -1,7 +1,9 @@
 package gig
 
 import (
+	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,14 +15,16 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/httputil"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
+	"github.com/vsayfb/gig-platform-core-service/pkg/squs"
 )
 
 type GigHandler struct {
-	svc *GigService
+	svc            *GigService
+	eventPublisher *squs.SQSPublisher
 }
 
-func NewGigHandler(svc *GigService) *GigHandler {
-	return &GigHandler{svc: svc}
+func NewGigHandler(svc *GigService, eventPublisher *squs.SQSPublisher) *GigHandler {
+	return &GigHandler{svc: svc, eventPublisher: eventPublisher}
 }
 
 func (h *GigHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.Manager) {
@@ -135,6 +139,25 @@ func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusInternalServerError, "could not create gig")
 		return
 	}
+
+	go func() {
+
+		ctx := context.Background()
+
+		err := h.eventPublisher.Publish(ctx, squs.GigCreatedEvent{
+			GigID:       detail.ID,
+			Title:       detail.Title,
+			Description: detail.DescriptionRaw,
+			Location: squs.GigLocation{
+				Lat: detail.Location.Lat,
+				Lng: detail.Location.Lng,
+			},
+		})
+
+		if err != nil {
+			log.Printf("failed to publish event: %v", err)
+		}
+	}()
 
 	httputil.WriteJSON(w, http.StatusCreated, detail)
 }

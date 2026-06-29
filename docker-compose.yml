@@ -1,5 +1,6 @@
 services:
   api:
+    container_name: core_svc
     build: .
     env_file:
       - local.env

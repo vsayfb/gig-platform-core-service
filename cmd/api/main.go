@@ -30,7 +30,12 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 	"github.com/vsayfb/gig-platform-core-service/pkg/logger"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
+	"github.com/vsayfb/gig-platform-core-service/pkg/squs"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	pb "github.com/vsayfb/gig-platform-protos/contracts"
 )
 
@@ -79,6 +84,24 @@ func main() {
 
 	jwtManager := jwt.NewManager(cfg.JWT.Secret, cfg.JWT.Expiration)
 
+	awsConfig, err := awscfg.LoadDefaultConfig(
+		context.Background(),
+		awscfg.WithRegion("us-east-1"),
+		awscfg.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider("test", "test", ""),
+		),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sqsClient := sqs.NewFromConfig(awsConfig, func(o *sqs.Options) {
+		o.BaseEndpoint = aws.String(cfg.SQS.BaseURL)
+	})
+
+	sqsPublisher := squs.NewSQSPublisher(sqsClient, cfg.SQS.QueueURL)
+
 	userRepo := user.NewUserRepository(db)
 	authRepo := auth.NewUserAuthRepository(db)
 	categoryRepo := category.NewCategoryRepository(db)
@@ -103,7 +126,7 @@ func main() {
 	authHandler := auth.NewUserAuthHandler(authService)
 	categoryHandler := category.NewCategoryHandler(categoryService)
 	locationHandler := location.NewUserLocationHandler(locationService)
-	gigHandler := gig.NewGigHandler(gigService)
+	gigHandler := gig.NewGigHandler(gigService, sqsPublisher)
 	applicationHandler := application.NewApplicationHandler(applicationService)
 	contractHandler := contract.NewContractHandler(contractService)
 	reviewHandler := review.NewReviewHandler(reviewService)
