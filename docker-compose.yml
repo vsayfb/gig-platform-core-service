@@ -15,7 +15,6 @@ services:
     build:
       context: .
       dockerfile: docker/postgres.Dockerfile
-    image: postgis/postgis:16-3.4
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
