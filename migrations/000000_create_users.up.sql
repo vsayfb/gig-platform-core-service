@@ -17,6 +17,7 @@ CREATE TABLE user_auth (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id          UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     google_sub       VARCHAR(255) NOT NULL UNIQUE,
+    fcm_token        TEXT,
     phone_encrypted  TEXT,
     phone_hmac       VARCHAR(255) UNIQUE, 
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()

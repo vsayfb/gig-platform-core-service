@@ -1,10 +1,11 @@
-CREATE TYPE category_status AS ENUM ('ACTIVE', 'PENDING', 'REJECTED');
+CREATE EXTENSION IF NOT EXISTS vector;
+
 
 CREATE TABLE categories (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name       VARCHAR(100) NOT NULL,
     slug       VARCHAR(100) NOT NULL UNIQUE,
-    status     category_status NOT NULL DEFAULT 'PENDING',
+    embedding  VECTOR(384),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
