@@ -30,6 +30,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/grpcserver"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
 	"github.com/vsayfb/gig-platform-core-service/pkg/logger"
+	"github.com/vsayfb/gig-platform-core-service/pkg/metrics"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 	"github.com/vsayfb/gig-platform-core-service/pkg/squs"
 
@@ -148,9 +149,12 @@ func main() {
 
 	}
 
-	r.Use(middleware.StructuredLogger)
-	r.Use(chimiddleware.Recoverer)
+	metrics.Register()
+
 	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.StructuredLogger)
+	r.Use(middleware.MetricsMiddleware)
+	r.Use(chimiddleware.Recoverer)
 
 	r.Group(func(r chi.Router) {
 		authHandler.RegisterRoutes(r)

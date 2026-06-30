@@ -27,7 +27,7 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router) {
 
 	r.Post("/notifications/me/fcm-token", h.RegisterFCMToken)
 	r.Delete("/notifications/me/fcm-token", h.DeleteFCMToken)
-	r.Post("/notifications/me/notifications", h.ListNotifications)
+	r.Post("/notifications/me", h.ListNotifications)
 }
 
 func (h *NotificationHandler) RegisterFCMToken(w http.ResponseWriter, r *http.Request) {
