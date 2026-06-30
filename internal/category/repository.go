@@ -3,6 +3,7 @@ package category
 import (
 	"context"
 	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,8 +12,16 @@ import (
 type CategoryRepository interface {
 	Save(ctx context.Context, category *Category) (*Category, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*Category, error)
-	FindBySlug(ctx context.Context, slug string) (*Category, error)
+	FindBySlug(
+		ctx context.Context,
+		query string,
+	) ([]*Category, error)
 	FindAllActive(ctx context.Context) ([]*Category, error)
+	FindAll(
+		ctx context.Context,
+		cursor uuid.UUID,
+		limit int,
+	) ([]*Category, error)
 	FindAllPending(ctx context.Context) ([]*Category, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status Status) (*Category, error)
 }
@@ -25,6 +34,22 @@ func NewCategoryRepository(db *pgxpool.Pool) CategoryRepository {
 	return &categoryRepository{db: db}
 }
 
+const findAll = `
+	SELECT id, name, slug, created_at
+	FROM categories
+	WHERE id < $1
+	ORDER BY id DESC
+	LIMIT $2;
+`
+
+const findBySlug = `
+	SELECT id, name, slug, created_at
+	FROM categories
+	WHERE slug ILIKE '%' || $1 || '%'
+	ORDER BY name
+	LIMIT 10;
+`
+
 const saveCategoryQuery = `
 	INSERT INTO categories (name, slug)
 	VALUES ($1, $2)
@@ -35,12 +60,6 @@ const findCategoryByIDQuery = `
 	SELECT id, name, slug, status, created_at
 	FROM categories
 	WHERE id = $1
-`
-
-const findCategoryBySlugQuery = `
-	SELECT id, name, slug, status, created_at
-	FROM categories
-	WHERE slug = $1
 `
 
 const findAllActiveCategoriesQuery = `
@@ -70,16 +89,72 @@ func (r *categoryRepository) Save(ctx context.Context, category *Category) (*Cat
 	return r.scan(row)
 }
 
+func (r *categoryRepository) FindAll(
+	ctx context.Context,
+	cursor uuid.UUID,
+	limit int,
+) ([]*Category, error) {
+	rows, err := r.db.Query(ctx, findAll, cursor, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var categories []*Category
+
+	for rows.Next() {
+		var c Category
+
+		err := rows.Scan(
+			&c.ID,
+			&c.Name,
+			&c.Slug,
+			&c.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		categories = append(categories, &c)
+	}
+
+	return categories, rows.Err()
+}
+
 func (r *categoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*Category, error) {
 	row := r.db.QueryRow(ctx, findCategoryByIDQuery, id)
 
 	return r.scan(row)
 }
 
-func (r *categoryRepository) FindBySlug(ctx context.Context, slug string) (*Category, error) {
-	row := r.db.QueryRow(ctx, findCategoryBySlugQuery, slug)
+func (r *categoryRepository) FindBySlug(
+	ctx context.Context,
+	query string,
+) ([]*Category, error) {
+	rows, err := r.db.Query(ctx, findBySlug, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return r.scan(row)
+	var categories []*Category
+
+	for rows.Next() {
+		var c Category
+
+		if err := rows.Scan(
+			&c.ID,
+			&c.Name,
+			&c.Slug,
+			&c.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		categories = append(categories, &c)
+	}
+
+	return categories, rows.Err()
 }
 
 func (r *categoryRepository) FindAllActive(ctx context.Context) ([]*Category, error) {

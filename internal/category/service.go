@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 var ErrCategoryNotFound = errors.New("category not found")
@@ -19,8 +22,56 @@ func NewCategoryService(repo CategoryRepository) *CategoryService {
 	return &CategoryService{repo: repo}
 }
 
-func (s *CategoryService) ListActive(ctx context.Context) ([]*Category, error) {
-	return s.repo.FindAllActive(ctx)
+func (s *CategoryService) ListActive(
+	ctx context.Context,
+	cursor uuid.UUID,
+	limit int,
+) ([]*Category, error) {
+
+	if limit <= 0 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	categories, err := s.repo.FindAll(
+		ctx,
+		cursor,
+		limit,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return categories, nil
+}
+
+func (s *CategoryService) ListBySlug(
+	ctx context.Context,
+	query string,
+) ([]*Category, error) {
+
+	query = strings.TrimSpace(query)
+
+	if query == "" {
+		return []*Category{}, nil
+	}
+
+	query = strings.ToLower(query)
+
+	categories, err := s.repo.FindBySlug(
+		ctx,
+		query,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return categories, nil
 }
 
 func (s *CategoryService) ListPending(ctx context.Context) ([]*Category, error) {
