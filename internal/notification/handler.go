@@ -25,9 +25,9 @@ type fcmTokenRequest struct {
 
 func (h *NotificationHandler) RegisterRoutes(r chi.Router) {
 
-	r.Post("/users/me/fcm-token", h.RegisterFCMToken)
-	r.Delete("/users/me/fcm-token", h.DeleteFCMToken)
-	r.Post("/users/me/notifications", h.ListNotifications)
+	r.Post("/notifications/me/fcm-token", h.RegisterFCMToken)
+	r.Delete("/notifications/me/fcm-token", h.DeleteFCMToken)
+	r.Post("/notifications/me/notifications", h.ListNotifications)
 }
 
 func (h *NotificationHandler) RegisterFCMToken(w http.ResponseWriter, r *http.Request) {
