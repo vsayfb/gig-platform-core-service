@@ -151,6 +151,8 @@ func main() {
 
 	metrics.Register()
 
+	metrics_svc := metrics.StartServer(cfg.REST.MetricsServerPort)
+
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.StructuredLogger)
 	r.Use(middleware.MetricsMiddleware)
@@ -216,6 +218,7 @@ func main() {
 	grpcService.Stop()
 
 	_ = httpSrv.Shutdown(ctx)
+	_ = metrics_svc.Shutdown(ctx)
 
 	slog.Info("shutdown complete")
 }

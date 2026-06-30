@@ -35,7 +35,8 @@ type GoogleConfig struct {
 }
 
 type ServerConfig struct {
-	Port string
+	Port              string
+	MetricsServerPort string
 }
 
 type GRPCConfig struct {
@@ -65,7 +66,8 @@ func Load() (*Config, error) {
 			ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
 		},
 		REST: ServerConfig{
-			Port: os.Getenv("REST_PORT"),
+			Port:              os.Getenv("REST_PORT"),
+			MetricsServerPort: os.Getenv("METRICS_SERVER_PORT"),
 		},
 		GRPC: GRPCConfig{
 			Port: os.Getenv("GRPC_PORT"),
@@ -104,6 +106,9 @@ func (c *Config) validate() error {
 		return fmt.Errorf("GOOGLE_CLIENT_ID is required")
 	}
 	if c.REST.Port == "" {
+		return fmt.Errorf("REST_PORT is required")
+	}
+	if c.REST.MetricsServerPort == "" {
 		return fmt.Errorf("REST_PORT is required")
 	}
 	if c.GRPC.Port == "" {
