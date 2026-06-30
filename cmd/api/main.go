@@ -19,6 +19,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/internal/category"
 	"github.com/vsayfb/gig-platform-core-service/internal/contract"
 	"github.com/vsayfb/gig-platform-core-service/internal/gig"
+	"github.com/vsayfb/gig-platform-core-service/internal/notification"
 	"github.com/vsayfb/gig-platform-core-service/internal/review"
 	"github.com/vsayfb/gig-platform-core-service/internal/user"
 	"github.com/vsayfb/gig-platform-core-service/internal/user/auth"
@@ -111,6 +112,7 @@ func main() {
 	applicationRepo := application.NewRepository(db)
 	contractRepo := contract.NewConctractRepository(db)
 	reviewRepo := review.NewReviewRepository(db)
+	notificationRepo := notification.NewNotificationRepository(db)
 
 	userService := user.NewUserService(userRepo)
 	reputationService := reputation.NewUserReputationService(reputationRepo)
@@ -121,6 +123,7 @@ func main() {
 	applicationService := application.NewApplicationService(applicationRepo, gigRepo)
 	contractService := contract.NewContractService(contractRepo, applicationRepo, gigRepo, db)
 	reviewService := review.NewReviewService(reviewRepo, contractRepo, *reputationService, db)
+	notificationService := notification.NewNotificationService(*notificationRepo)
 
 	userHandler := user.NewUserHandler(userService)
 	authHandler := auth.NewUserAuthHandler(authService)
@@ -130,6 +133,7 @@ func main() {
 	applicationHandler := application.NewApplicationHandler(applicationService)
 	contractHandler := contract.NewContractHandler(contractService)
 	reviewHandler := review.NewReviewHandler(reviewService)
+	notificationHandler := notification.NewNotificationHandler(notificationService)
 
 	slog.Info("dependencies injected")
 
@@ -161,6 +165,7 @@ func main() {
 		userHandler.RegisterRoutes(r)
 		locationHandler.RegisterRoutes(r)
 		contractHandler.RegisterRoutes(r)
+		notificationHandler.RegisterRoutes(r)
 	})
 
 	grpcHandler := grpcserver.NewGRPCHandler(userService)

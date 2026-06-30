@@ -26,7 +26,6 @@ CREATE TABLE user_auth (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     google_sub      VARCHAR(255) NOT NULL UNIQUE,
-    fcm_token       TEXT,
     phone_encrypted TEXT,
     phone_hmac      VARCHAR(255) UNIQUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -191,4 +190,35 @@ CREATE TABLE reviews (
 
 CREATE INDEX idx_reviews_reviewee_id ON reviews(reviewee_id);
 
+-- -----------------------------------------------------------------------------
+-- 000008_create_notifications
+-- -----------------------------------------------------------------------------
 
+CREATE TABLE notifications (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     uuid NOT NULL REFERENCES users(id),
+    type        text NOT NULL,
+    ref_gig_id  uuid REFERENCES gigs(id),
+    title       text NOT NULL,
+    body        text NOT NULL,
+    is_read     boolean NOT NULL DEFAULT false,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_notifications_user_created ON notifications (user_id, created_at DESC);
+CREATE INDEX idx_notifications_user_unread ON notifications (user_id) WHERE is_read = false;
+
+-- -----------------------------------------------------------------------------
+-- 000008_create_fcm_tokens
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE fcm_tokens (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token       text NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, token)
+);
+
+CREATE INDEX idx_fcm_tokens_user ON fcm_tokens (user_id);
