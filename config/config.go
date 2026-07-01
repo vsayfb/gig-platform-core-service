@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 )
@@ -36,7 +37,9 @@ type GoogleConfig struct {
 
 type ServerConfig struct {
 	Port              string
+	ServiceName       string
 	MetricsServerPort string
+	OTelCollectorAddr string
 }
 
 type GRPCConfig struct {
@@ -51,73 +54,46 @@ type SQS struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		DB: DBConfig{
-			Host:     os.Getenv("DB_HOST"),
-			Port:     os.Getenv("DB_PORT"),
-			User:     os.Getenv("DB_USER"),
-			Password: os.Getenv("DB_PASSWORD"),
-			Name:     os.Getenv("DB_NAME"),
-			SSLMode:  os.Getenv("DB_SSLMODE"),
+			Host:     mustGetEnv("DB_HOST"),
+			Port:     mustGetEnv("DB_PORT"),
+			User:     mustGetEnv("DB_USER"),
+			Password: mustGetEnv("DB_PASSWORD"),
+			Name:     mustGetEnv("DB_NAME"),
+			SSLMode:  mustGetEnv("DB_SSLMODE"),
 		},
 		JWT: JWTConfig{
-			Secret:     os.Getenv("JWT_SECRET"),
+			Secret:     mustGetEnv("JWT_SECRET"),
 			Expiration: 24 * time.Hour,
 		},
 		Google: GoogleConfig{
-			ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+			ClientID: mustGetEnv("GOOGLE_CLIENT_ID"),
 		},
 		REST: ServerConfig{
-			Port:              os.Getenv("REST_PORT"),
-			MetricsServerPort: os.Getenv("METRICS_SERVER_PORT"),
+			Port:              mustGetEnv("REST_PORT"),
+			MetricsServerPort: mustGetEnv("METRICS_SERVER_PORT"),
+			ServiceName:       mustGetEnv("SERVICE_NAME"),
+			OTelCollectorAddr: mustGetEnv("OTEL_COLLECTOR_ADDR"),
 		},
 		GRPC: GRPCConfig{
-			Port: os.Getenv("GRPC_PORT"),
+			Port: mustGetEnv("GRPC_PORT"),
 		},
 		SQS: SQS{
-			QueueURL: os.Getenv("SQS_QUEUE_URL"),
-			BaseURL:  os.Getenv("SQS_QUEUE_URL"),
+			QueueURL: mustGetEnv("SQS_QUEUE_URL"),
+			BaseURL:  mustGetEnv("SQS_QUEUE_URL"),
 		},
-		Env: os.Getenv("APP_ENV"),
-	}
-
-	if err := cfg.validate(); err != nil {
-		return nil, err
+		Env: mustGetEnv("APP_ENV"),
 	}
 
 	return cfg, nil
 }
 
-func (c *Config) validate() error {
-	if c.DB.Host == "" {
-		return fmt.Errorf("DB_HOST is required")
+func mustGetEnv(key string) string {
+	v := os.Getenv(key)
+
+	if v == "" {
+		log.Fatalf("missing required env var: %s", key)
 	}
-	if c.DB.User == "" {
-		return fmt.Errorf("DB_USER is required")
-	}
-	if c.DB.Password == "" {
-		return fmt.Errorf("DB_PASSWORD is required")
-	}
-	if c.DB.Name == "" {
-		return fmt.Errorf("DB_NAME is required")
-	}
-	if c.JWT.Secret == "" {
-		return fmt.Errorf("JWT_SECRET is required")
-	}
-	if c.Google.ClientID == "" {
-		return fmt.Errorf("GOOGLE_CLIENT_ID is required")
-	}
-	if c.REST.Port == "" {
-		return fmt.Errorf("REST_PORT is required")
-	}
-	if c.REST.MetricsServerPort == "" {
-		return fmt.Errorf("REST_PORT is required")
-	}
-	if c.GRPC.Port == "" {
-		return fmt.Errorf("GRPC_PORT is required")
-	}
-	if c.SQS.QueueURL == "" || c.SQS.BaseURL == "" {
-		return fmt.Errorf("SQS credentials are required")
-	}
-	return nil
+	return v
 }
 
 func (c *DBConfig) DSN() string {

@@ -33,6 +33,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/metrics"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 	"github.com/vsayfb/gig-platform-core-service/pkg/squs"
+	"github.com/vsayfb/gig-platform-core-service/pkg/tracing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -156,7 +157,15 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.StructuredLogger)
 	r.Use(middleware.MetricsMiddleware)
+	r.Use(middleware.TracingMiddleware)
 	r.Use(chimiddleware.Recoverer)
+
+	shutdownTracer, err := tracing.InitTracer(ctx, cfg.REST.ServiceName, cfg.REST.OTelCollectorAddr)
+
+	if err != nil {
+		slog.Error("failed to init tracer", "error", err)
+		os.Exit(1)
+	}
 
 	r.Group(func(r chi.Router) {
 		authHandler.RegisterRoutes(r)
@@ -211,14 +220,21 @@ func main() {
 
 	slog.Info("shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
 
 	grpcService.Stop()
 
-	_ = httpSrv.Shutdown(ctx)
-	_ = metrics_svc.Shutdown(ctx)
+	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("failed to close server's http connection", "err", err)
+	}
+
+	if err := metrics_svc.Shutdown(shutdownCtx); err != nil {
+		slog.Error("failed to close metrics' http connection", "err", err)
+	}
+
+	shutdownTracer(shutdownCtx)
 
 	slog.Info("shutdown complete")
 }
