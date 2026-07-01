@@ -50,7 +50,7 @@ func (h *NotificationHandler) RegisterFCMToken(w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		slog.Error("failed to store token", "err", err)
+		slog.ErrorContext(r.Context(), "failed to store token", "err", err)
 
 		http.Error(w, "failed to store token", http.StatusInternalServerError)
 		return
@@ -79,7 +79,7 @@ func (h *NotificationHandler) DeleteFCMToken(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		slog.Error("failed to list notifications", "err", err)
+		slog.ErrorContext(r.Context(), "failed to list notifications", "err", err)
 
 		http.Error(w, "failed to delete token", http.StatusInternalServerError)
 		return
@@ -120,7 +120,7 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 	notifications, err := h.service.ListNotifications(r.Context(), userID, params)
 
 	if err != nil {
-		slog.Error("failed to list notifications", "err", err)
+		slog.ErrorContext(r.Context(), "failed to list notifications", "err", err)
 
 		http.Error(w, "failed to list notifications", http.StatusInternalServerError)
 		return

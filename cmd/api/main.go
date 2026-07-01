@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	logger.Init(cfg.Env)
+	logHandler := logger.Init(cfg.Env)
 
 	slog.Info("starting app", "env", cfg.Env)
 
@@ -150,22 +150,24 @@ func main() {
 
 	}
 
-	metrics.Register()
-
-	metrics_svc := metrics.StartServer(cfg.REST.MetricsServerPort)
-
-	r.Use(chimiddleware.RequestID)
-	r.Use(middleware.StructuredLogger)
-	r.Use(middleware.MetricsMiddleware)
-	r.Use(middleware.TracingMiddleware)
-	r.Use(chimiddleware.Recoverer)
-
 	shutdownTracer, err := tracing.InitTracer(ctx, cfg.REST.ServiceName, cfg.REST.OTelCollectorAddr)
 
 	if err != nil {
 		slog.Error("failed to init tracer", "error", err)
 		os.Exit(1)
 	}
+
+	slog.SetDefault(slog.New(tracing.NewOTelHandler(logHandler)))
+
+	metrics.Register()
+
+	metrics_svc := metrics.StartServer(cfg.REST.MetricsServerPort)
+
+	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.TracingMiddleware)
+	r.Use(middleware.StructuredLogger)
+	r.Use(middleware.MetricsMiddleware)
+	r.Use(chimiddleware.Recoverer)
 
 	r.Group(func(r chi.Router) {
 		authHandler.RegisterRoutes(r)

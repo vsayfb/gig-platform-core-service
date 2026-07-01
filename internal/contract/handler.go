@@ -56,7 +56,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNotParty):
 			httputil.WriteError(w, http.StatusForbidden, "forbidden")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		}
@@ -94,7 +94,7 @@ func (h *Handler) Hire(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTransition):
 			httputil.WriteError(w, http.StatusConflict, "application is not in a hireable state")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "could not hire")
 		}
@@ -130,7 +130,7 @@ func (h *Handler) JobDone(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTransition):
 			httputil.WriteError(w, http.StatusConflict, "contract is not active")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "could not update contract")
 		}
@@ -165,7 +165,7 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTransition):
 			httputil.WriteError(w, http.StatusConflict, "contract is not awaiting approval")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "could not approve contract")
 		}
@@ -199,7 +199,7 @@ func (h *Handler) Dispute(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTransition):
 			httputil.WriteError(w, http.StatusConflict, "contract is not awaiting approval")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "could not dispute contract")
 		}
@@ -235,7 +235,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTransition):
 			httputil.WriteError(w, http.StatusConflict, "contract cannot be cancelled in its current status")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "could not cancel contract")
 		}

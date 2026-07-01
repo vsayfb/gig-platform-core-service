@@ -5,19 +5,19 @@ import (
 	"os"
 )
 
-func Init(env string) {
-	var handler slog.Handler
+func Init(env string) slog.Handler {
+	var opts slog.HandlerOptions
 
 	switch env {
 	case "production", "stage":
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		})
+		opts = slog.HandlerOptions{Level: slog.LevelInfo}
+		handler := slog.NewJSONHandler(os.Stdout, &opts)
+		slog.SetDefault(slog.New(handler))
+		return handler
 	default:
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})
+		opts = slog.HandlerOptions{Level: slog.LevelDebug}
+		handler := slog.NewTextHandler(os.Stdout, &opts)
+		slog.SetDefault(slog.New(handler))
+		return handler
 	}
-
-	slog.SetDefault(slog.New(handler))
 }

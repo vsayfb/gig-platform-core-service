@@ -55,6 +55,7 @@ func (h *CategoryHandler) FindActive(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		slog.ErrorContext(r.Context(), "internal server error", "err", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -84,6 +85,7 @@ func (h *CategoryHandler) FindBySlug(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		slog.ErrorContext(r.Context(), "internal server error", "err", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -115,7 +117,7 @@ func (h *CategoryHandler) Suggest(w http.ResponseWriter, r *http.Request) {
 		case ErrCategoryAlreadyExists:
 			httputil.WriteError(w, http.StatusConflict, "category already exists")
 		default:
-			slog.Error("internal server error", "err", err)
+			slog.ErrorContext(r.Context(), "internal server error", "err", err)
 
 			httputil.WriteError(w, http.StatusInternalServerError, "failed to suggest category")
 		}

@@ -46,7 +46,7 @@ func (p *SQSPublisher) Publish(ctx context.Context, event any) error {
 		inf, err := p.client.SendMessage(ctx, inp)
 
 		if err == nil {
-			slog.Info("sqs message sent (gig):", "message", inf)
+			slog.InfoContext(ctx, "sqs message sent (gig):", "message", aws.ToString(inf.MessageId))
 
 			return nil
 		}

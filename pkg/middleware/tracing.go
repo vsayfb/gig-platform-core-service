@@ -25,7 +25,6 @@ func TracingMiddleware(next http.Handler) http.Handler {
 				semconv.URLPath(r.URL.Path),
 			),
 		)
-
 		defer span.End()
 
 		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
