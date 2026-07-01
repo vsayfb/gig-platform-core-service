@@ -3,10 +3,13 @@ package squs
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/vsayfb/gig-platform-core-service/pkg/tracing"
 )
 
 type SQSPublisher struct {
@@ -32,14 +35,21 @@ func (p *SQSPublisher) Publish(ctx context.Context, event any) error {
 
 	for i := range 3 {
 
-		_, err = p.client.SendMessage(ctx, &sqs.SendMessageInput{
-			QueueUrl:    aws.String(p.queueURL),
-			MessageBody: aws.String(string(body)),
-		})
+		inp := &sqs.SendMessageInput{
+			QueueUrl:          aws.String(p.queueURL),
+			MessageBody:       aws.String(string(body)),
+			MessageAttributes: make(map[string]types.MessageAttributeValue),
+		}
+
+		tracing.InjectTraceContext(ctx, inp.MessageAttributes)
+
+		inf, err := p.client.SendMessage(ctx, inp)
 
 		if err == nil {
 			return nil
 		}
+
+		slog.Info("sqs message sent (gig):", "message", inf)
 
 		lastErr = err
 
