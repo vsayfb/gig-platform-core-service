@@ -3,7 +3,6 @@ package gig
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/vsayfb/gig-platform-core-service/pkg/httputil"
 	"github.com/vsayfb/gig-platform-core-service/pkg/jwt"
@@ -140,11 +140,8 @@ func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func() {
-
-		ctx := context.Background()
-
-		err := h.eventPublisher.Publish(ctx, squs.GigCreatedEvent{
+	go func(publishCtx context.Context) {
+		err := h.eventPublisher.Publish(publishCtx, squs.GigCreatedEvent{
 			GigID:       detail.ID,
 			Title:       detail.Title,
 			Description: detail.DescriptionRaw,
@@ -153,11 +150,10 @@ func (h *GigHandler) Create(w http.ResponseWriter, r *http.Request) {
 				Lng: detail.Location.Lng,
 			},
 		})
-
 		if err != nil {
-			log.Printf("failed to publish event: %v", err)
+			slog.ErrorContext(publishCtx, "failed to publish event", "err", err)
 		}
-	}()
+	}(trace.ContextWithSpan(context.Background(), trace.SpanFromContext(r.Context())))
 
 	httputil.WriteJSON(w, http.StatusCreated, detail)
 }

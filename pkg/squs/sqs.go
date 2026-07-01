@@ -46,10 +46,10 @@ func (p *SQSPublisher) Publish(ctx context.Context, event any) error {
 		inf, err := p.client.SendMessage(ctx, inp)
 
 		if err == nil {
+			slog.Info("sqs message sent (gig):", "message", inf)
+
 			return nil
 		}
-
-		slog.Info("sqs message sent (gig):", "message", inf)
 
 		lastErr = err
 
