@@ -65,7 +65,7 @@ func runMigrations(t *testing.T, connStr string) {
 	}
 }
 
-func newTestService(t *testing.T, pool *pgxpool.Pool) *location.UserLocationService {
+func newTestService(t *testing.T, pool *pgxpool.Pool) location.UserLocationService {
 	t.Helper()
 	repo := location.NewUserLocationRepository(pool)
 	return location.NewUserLocationService(repo)

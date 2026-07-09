@@ -7,15 +7,21 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserReputationService struct {
+type UserReputationService interface {
+	Initialize(ctx context.Context, userID uuid.UUID) (*UserReputation, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) (*UserReputation, error)
+	Recalculate(ctx context.Context, userID uuid.UUID, newRating float32, asEmployer bool) error
+}
+
+type service struct {
 	repo UserReputationRepository
 }
 
-func NewUserReputationService(repo UserReputationRepository) *UserReputationService {
-	return &UserReputationService{repo: repo}
+func NewUserReputationService(repo UserReputationRepository) UserReputationService {
+	return &service{repo: repo}
 }
 
-func (s *UserReputationService) Initialize(ctx context.Context, userID uuid.UUID) (*UserReputation, error) {
+func (s *service) Initialize(ctx context.Context, userID uuid.UUID) (*UserReputation, error) {
 	rep := NewUserReputation(userID)
 
 	created, err := s.repo.Save(ctx, rep)
@@ -27,7 +33,7 @@ func (s *UserReputationService) Initialize(ctx context.Context, userID uuid.UUID
 	return created, nil
 }
 
-func (s *UserReputationService) FindByUserID(ctx context.Context, userID uuid.UUID) (*UserReputation, error) {
+func (s *service) FindByUserID(ctx context.Context, userID uuid.UUID) (*UserReputation, error) {
 	rep, err := s.repo.FindByUserID(ctx, userID)
 
 	if err != nil {
@@ -37,7 +43,7 @@ func (s *UserReputationService) FindByUserID(ctx context.Context, userID uuid.UU
 	return rep, nil
 }
 
-func (s *UserReputationService) Recalculate(ctx context.Context, userID uuid.UUID, newRating float32, asEmployer bool) error {
+func (s *service) Recalculate(ctx context.Context, userID uuid.UUID, newRating float32, asEmployer bool) error {
 	rep, err := s.repo.FindByUserID(ctx, userID)
 
 	if err != nil {

@@ -15,15 +15,20 @@ const (
 	maxSpeedKmH = 200.0
 )
 
-type UserLocationService struct {
+type UserLocationService interface {
+	Upsert(ctx context.Context, userID uuid.UUID, lat, lng float64) (*UserLocation, error)
+	FindNearby(ctx context.Context, requesterID uuid.UUID, lat, lng, radiusKm float64) ([]*UserLocation, error)
+}
+
+type service struct {
 	repo UserLocationRepository
 }
 
-func NewUserLocationService(repo UserLocationRepository) *UserLocationService {
-	return &UserLocationService{repo: repo}
+func NewUserLocationService(repo UserLocationRepository) UserLocationService {
+	return &service{repo: repo}
 }
 
-func (s *UserLocationService) Upsert(ctx context.Context, userID uuid.UUID, lat, lng float64) (*UserLocation, error) {
+func (s *service) Upsert(ctx context.Context, userID uuid.UUID, lat, lng float64) (*UserLocation, error) {
 	if err := validateCoordinates(lat, lng); err != nil {
 		return nil, err
 	}
@@ -56,7 +61,7 @@ func (s *UserLocationService) Upsert(ctx context.Context, userID uuid.UUID, lat,
 	return s.repo.Update(ctx, existing)
 }
 
-func (s *UserLocationService) FindNearby(ctx context.Context, requesterID uuid.UUID, lat, lng, radiusKm float64) ([]*UserLocation, error) {
+func (s *service) FindNearby(ctx context.Context, requesterID uuid.UUID, lat, lng, radiusKm float64) ([]*UserLocation, error) {
 	if err := validateCoordinates(lat, lng); err != nil {
 		return nil, err
 	}

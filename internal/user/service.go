@@ -10,15 +10,25 @@ import (
 
 var ErrUserNotFound = errors.New("user not found")
 
-type UserService struct {
+type UserService interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetSummaries(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error)
+	UpdateProfile(ctx context.Context, user *User) (*User, error)
+	AddFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	PutCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type service struct {
 	userRepo UserRepository
 }
 
-func NewUserService(repo UserRepository) *UserService {
-	return &UserService{userRepo: repo}
+func NewUserService(repo UserRepository) UserService {
+	return &service{userRepo: repo}
 }
 
-func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
+func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	user, err := s.userRepo.FindByID(ctx, id)
 
 	if err != nil {
@@ -28,11 +38,11 @@ func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*User, error) 
 	return user, nil
 }
 
-func (s *UserService) GetSummaries(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error) {
+func (s *service) GetSummaries(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error) {
 	return s.userRepo.FindSummariesByIDs(ctx, ids)
 }
 
-func (s *UserService) UpdateProfile(ctx context.Context, user *User) (*User, error) {
+func (s *service) UpdateProfile(ctx context.Context, user *User) (*User, error) {
 	existing, err := s.userRepo.FindByID(ctx, user.ID)
 
 	if err != nil {
@@ -53,7 +63,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, user *User) (*User, err
 	return updated, nil
 }
 
-func (s *UserService) AddFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (s *service) AddFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 	err := s.userRepo.InsertFCMToken(ctx, userID, token)
 
 	if err != nil {
@@ -63,7 +73,7 @@ func (s *UserService) AddFCMToken(ctx context.Context, userID uuid.UUID, token s
 	return nil
 }
 
-func (s *UserService) RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (s *service) RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 	err := s.userRepo.DeleteFCMToken(ctx, userID, token)
 
 	if err != nil {
@@ -73,7 +83,7 @@ func (s *UserService) RemoveFCMToken(ctx context.Context, userID uuid.UUID, toke
 	return nil
 }
 
-func (s *UserService) PutCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error {
+func (s *service) PutCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error {
 	if err := s.userRepo.InsertCategories(ctx, userID, categoryIDs); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -81,7 +91,7 @@ func (s *UserService) PutCategories(ctx context.Context, userID uuid.UUID, categ
 	return nil
 }
 
-func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := s.userRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}

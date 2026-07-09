@@ -86,7 +86,7 @@ func runMigrations(t *testing.T, connStr string) {
 	}
 }
 
-func newTestService(t *testing.T, pool *pgxpool.Pool, verifier google.TokenVerifier) *auth.UserAuthService {
+func newTestService(t *testing.T, pool *pgxpool.Pool, verifier google.TokenVerifier) auth.UserAuthService {
 	t.Helper()
 	authRepo := auth.NewUserAuthRepository(pool)
 	userRepo := user.NewUserRepository(pool)

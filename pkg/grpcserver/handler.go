@@ -13,10 +13,10 @@ import (
 
 type GRPCHandler struct {
 	pb.UnimplementedUserServiceServer
-	svc *user.UserService
+	svc user.UserService
 }
 
-func NewGRPCHandler(svc *user.UserService) *GRPCHandler {
+func NewGRPCHandler(svc user.UserService) *GRPCHandler {
 	return &GRPCHandler{
 		svc: svc,
 	}

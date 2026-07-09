@@ -18,15 +18,23 @@ var (
 	ErrCurrencyRequired    = errors.New("gig: pay_currency is required when pay_amount is provided")
 )
 
-type GigService struct {
+type GigService interface {
+	Feed(ctx context.Context, p FeedParams) ([]*GigFull, error)
+	Get(ctx context.Context, id uuid.UUID) (*GigFull, error)
+	Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigFull, error)
+	Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigFull, error)
+	Cancel(ctx context.Context, gigID uuid.UUID, callerID uuid.UUID) error
+}
+
+type service struct {
 	repo GigRepository
 }
 
-func NewGigService(repo GigRepository) *GigService {
-	return &GigService{repo: repo}
+func NewGigService(repo GigRepository) GigService {
+	return &service{repo: repo}
 }
 
-func (s *GigService) Feed(ctx context.Context, p FeedParams) ([]*GigFull, error) {
+func (s *service) Feed(ctx context.Context, p FeedParams) ([]*GigFull, error) {
 	if p.RadiusMeters <= 0 {
 		p.RadiusMeters = RADIUS_METERS
 	}
@@ -38,11 +46,11 @@ func (s *GigService) Feed(ctx context.Context, p FeedParams) ([]*GigFull, error)
 	return s.repo.FindFeed(ctx, p)
 }
 
-func (s *GigService) Get(ctx context.Context, id uuid.UUID) (*GigFull, error) {
+func (s *service) Get(ctx context.Context, id uuid.UUID) (*GigFull, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigFull, error) {
+func (s *service) Create(ctx context.Context, posterID uuid.UUID, in CreateGigInput) (*GigFull, error) {
 	if err := validateCreate(in); err != nil {
 		return nil, err
 	}
@@ -82,7 +90,7 @@ func (s *GigService) Create(ctx context.Context, posterID uuid.UUID, in CreateGi
 	return s.repo.FindByID(ctx, g.ID)
 }
 
-func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigFull, error) {
+func (s *service) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UUID, in UpdateGigInput) (*GigFull, error) {
 	full, err := s.repo.FindByID(ctx, gigID)
 
 	if err != nil {
@@ -100,7 +108,7 @@ func (s *GigService) Edit(ctx context.Context, gigID uuid.UUID, posterID uuid.UU
 	return s.repo.FindByID(ctx, gigID)
 }
 
-func (s *GigService) Cancel(ctx context.Context, gigID uuid.UUID, callerID uuid.UUID) error {
+func (s *service) Cancel(ctx context.Context, gigID uuid.UUID, callerID uuid.UUID) error {
 	full, err := s.repo.FindByID(ctx, gigID)
 	if err != nil {
 		return err

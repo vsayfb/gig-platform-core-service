@@ -8,15 +8,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type NotificationRepository struct {
+type NotificationRepository interface {
+	UpsertFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	DeleteFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	ListFCMTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
+	ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error)
+}
+
+type repository struct {
 	db *pgxpool.Pool
 }
 
-func NewNotificationRepository(db *pgxpool.Pool) *NotificationRepository {
-	return &NotificationRepository{db: db}
+func NewNotificationRepository(db *pgxpool.Pool) NotificationRepository {
+	return &repository{db: db}
 }
 
-func (r *NotificationRepository) UpsertFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (r *repository) UpsertFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 
 	const q = `
 		INSERT INTO fcm_tokens (user_id, token)
@@ -31,7 +38,7 @@ func (r *NotificationRepository) UpsertFCMToken(ctx context.Context, userID uuid
 	return nil
 }
 
-func (r *NotificationRepository) DeleteFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (r *repository) DeleteFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 	const q = `DELETE FROM fcm_tokens WHERE user_id = $1 AND token = $2`
 
 	if _, err := r.db.Exec(ctx, q, userID, token); err != nil {
@@ -41,7 +48,7 @@ func (r *NotificationRepository) DeleteFCMToken(ctx context.Context, userID uuid
 	return nil
 }
 
-func (r *NotificationRepository) ListFCMTokens(ctx context.Context, userID uuid.UUID) ([]string, error) {
+func (r *repository) ListFCMTokens(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	const q = `SELECT token FROM fcm_tokens WHERE user_id = $1`
 
 	rows, err := r.db.Query(ctx, q, userID)
@@ -66,7 +73,7 @@ func (r *NotificationRepository) ListFCMTokens(ctx context.Context, userID uuid.
 	return tokens, rows.Err()
 }
 
-func (r *NotificationRepository) ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error) {
+func (r *repository) ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error) {
 	q := `
 		SELECT id, user_id, type, ref_gig_id, title, body, is_read, created_at
 		FROM notifications

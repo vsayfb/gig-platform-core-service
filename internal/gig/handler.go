@@ -19,11 +19,11 @@ import (
 )
 
 type GigHandler struct {
-	svc            *GigService
+	svc            GigService
 	eventPublisher *squs.SQSPublisher
 }
 
-func NewGigHandler(svc *GigService, eventPublisher *squs.SQSPublisher) *GigHandler {
+func NewGigHandler(svc GigService, eventPublisher *squs.SQSPublisher) *GigHandler {
 	return &GigHandler{svc: svc, eventPublisher: eventPublisher}
 }
 

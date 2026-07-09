@@ -12,10 +12,10 @@ import (
 )
 
 type NotificationHandler struct {
-	service *NotificationService
+	service NotificationService
 }
 
-func NewNotificationHandler(service *NotificationService) *NotificationHandler {
+func NewNotificationHandler(service NotificationService) *NotificationHandler {
 	return &NotificationHandler{service: service}
 }
 

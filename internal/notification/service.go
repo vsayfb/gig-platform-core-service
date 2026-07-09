@@ -10,15 +10,21 @@ import (
 
 var ErrEmptyToken = errors.New("fcm token must not be empty")
 
-type NotificationService struct {
+type NotificationService interface {
+	RegisterFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error)
+}
+
+type service struct {
 	repo NotificationRepository
 }
 
-func NewNotificationService(repo NotificationRepository) *NotificationService {
-	return &NotificationService{repo: repo}
+func NewNotificationService(repo NotificationRepository) NotificationService {
+	return &service{repo: repo}
 }
 
-func (s *NotificationService) RegisterFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (s *service) RegisterFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 	token = strings.TrimSpace(token)
 
 	if token == "" {
@@ -28,7 +34,7 @@ func (s *NotificationService) RegisterFCMToken(ctx context.Context, userID uuid.
 	return s.repo.UpsertFCMToken(ctx, userID, token)
 }
 
-func (s *NotificationService) RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+func (s *service) RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
 	token = strings.TrimSpace(token)
 
 	if token == "" {
@@ -38,7 +44,7 @@ func (s *NotificationService) RemoveFCMToken(ctx context.Context, userID uuid.UU
 	return s.repo.DeleteFCMToken(ctx, userID, token)
 }
 
-func (s *NotificationService) ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error) {
+func (s *service) ListNotifications(ctx context.Context, userID uuid.UUID, p ListNotificationsParams) ([]Notification, error) {
 	if p.Limit <= 0 || p.Limit > 100 {
 		p.Limit = 20
 	}

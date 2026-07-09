@@ -14,15 +14,22 @@ var ErrCategoryNotFound = errors.New("category not found")
 var ErrCategoryAlreadyExists = errors.New("category already exists")
 var ErrSuggestionLimitReached = errors.New("suggestion limit reached")
 
-type CategoryService struct {
+type CategoryService interface {
+	ListActive(ctx context.Context, cursor uuid.UUID, limit int) ([]*Category, error)
+	ListBySlug(ctx context.Context, query string) ([]*Category, error)
+	ListPending(ctx context.Context) ([]*Category, error)
+	Suggest(ctx context.Context, name, slug string) (*Category, error)
+}
+
+type service struct {
 	repo CategoryRepository
 }
 
-func NewCategoryService(repo CategoryRepository) *CategoryService {
-	return &CategoryService{repo: repo}
+func NewCategoryService(repo CategoryRepository) CategoryService {
+	return &service{repo: repo}
 }
 
-func (s *CategoryService) ListActive(
+func (s *service) ListActive(
 	ctx context.Context,
 	cursor uuid.UUID,
 	limit int,
@@ -49,7 +56,7 @@ func (s *CategoryService) ListActive(
 	return categories, nil
 }
 
-func (s *CategoryService) ListBySlug(
+func (s *service) ListBySlug(
 	ctx context.Context,
 	query string,
 ) ([]*Category, error) {
@@ -74,11 +81,11 @@ func (s *CategoryService) ListBySlug(
 	return categories, nil
 }
 
-func (s *CategoryService) ListPending(ctx context.Context) ([]*Category, error) {
+func (s *service) ListPending(ctx context.Context) ([]*Category, error) {
 	return s.repo.FindAllPending(ctx)
 }
 
-func (s *CategoryService) Suggest(ctx context.Context, name, slug string) (*Category, error) {
+func (s *service) Suggest(ctx context.Context, name, slug string) (*Category, error) {
 	existing, err := s.repo.FindBySlug(ctx, slug)
 
 	if err == nil && existing != nil {

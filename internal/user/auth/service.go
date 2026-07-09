@@ -19,10 +19,14 @@ type AuthResult struct {
 	User  *user.User
 }
 
-type UserAuthService struct {
+type UserAuthService interface {
+	GoogleLogin(ctx context.Context, idToken string) (*AuthResult, error)
+}
+
+type service struct {
 	authRepo          UserAuthRepository
 	userRepo          user.UserRepository
-	reputationService *reputation.UserReputationService
+	reputationService reputation.UserReputationService
 	tokenVerifier     google.TokenVerifier
 	jwtManager        *jwt.Manager
 	db                *pgxpool.Pool
@@ -31,12 +35,12 @@ type UserAuthService struct {
 func NewUserAuthService(
 	authRepo UserAuthRepository,
 	userRepo user.UserRepository,
-	reputationService *reputation.UserReputationService,
+	reputationService reputation.UserReputationService,
 	verifier google.TokenVerifier,
 	jwtManager *jwt.Manager,
 	db *pgxpool.Pool,
-) *UserAuthService {
-	return &UserAuthService{
+) UserAuthService {
+	return &service{
 		authRepo:          authRepo,
 		userRepo:          userRepo,
 		reputationService: reputationService,
@@ -48,7 +52,7 @@ func NewUserAuthService(
 
 // handles both registration and login via OIDC.
 // if the user exists, login. if not, register then login.
-func (s *UserAuthService) GoogleLogin(ctx context.Context, idToken string) (*AuthResult, error) {
+func (s *service) GoogleLogin(ctx context.Context, idToken string) (*AuthResult, error) {
 	claims, err := s.tokenVerifier.Verify(ctx, idToken)
 
 	if err != nil {
@@ -83,7 +87,7 @@ func (s *UserAuthService) GoogleLogin(ctx context.Context, idToken string) (*Aut
 	return s.issueToken(u)
 }
 
-func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (*user.User, error) {
+func (s *service) register(ctx context.Context, claims *google.Claims) (*user.User, error) {
 	var createdUser *user.User
 
 	err := dbtx.RunInTx(ctx, s.db, func(txCtx context.Context) error {
@@ -111,7 +115,7 @@ func (s *UserAuthService) register(ctx context.Context, claims *google.Claims) (
 	return createdUser, err
 }
 
-func (s *UserAuthService) issueToken(u *user.User) (*AuthResult, error) {
+func (s *service) issueToken(u *user.User) (*AuthResult, error) {
 	token, err := s.jwtManager.Generate(u.ID.String())
 
 	if err != nil {

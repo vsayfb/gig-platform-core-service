@@ -96,7 +96,7 @@ func seedCategory(t *testing.T, pool *pgxpool.Pool) uuid.UUID {
 // Factory helpers
 // ---------------------------------------------------------------------------
 
-func newTestService(pool *pgxpool.Pool) *gig.GigService {
+func newTestService(pool *pgxpool.Pool) gig.GigService {
 	return gig.NewGigService(gig.NewRepository(pool))
 }
 

@@ -10,10 +10,10 @@ import (
 )
 
 type UserLocationHandler struct {
-	service *UserLocationService
+	service UserLocationService
 }
 
-func NewUserLocationHandler(service *UserLocationService) *UserLocationHandler {
+func NewUserLocationHandler(service UserLocationService) *UserLocationHandler {
 	return &UserLocationHandler{service: service}
 }
 
