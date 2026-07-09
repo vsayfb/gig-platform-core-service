@@ -14,6 +14,9 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	Update(ctx context.Context, user *User) (*User, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+	InsertFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	DeleteFCMToken(ctx context.Context, userID uuid.UUID, token string) error
+	InsertCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error
 	FindSummariesByIDs(ctx context.Context, ids []uuid.UUID) ([]*UserSummary, error)
 }
 
@@ -41,6 +44,65 @@ func (r *userRepository) Save(ctx context.Context, user *User) (*User, error) {
 	)
 
 	return scanUser(row)
+}
+
+func (r *userRepository) InsertCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error {
+	if len(categoryIDs) == 0 {
+		return nil
+	}
+
+	const query = `
+		INSERT INTO user_categories (user_id, category_id)
+		SELECT $1, unnest($2::uuid[])
+		ON CONFLICT (user_id, category_id) DO NOTHING
+	`
+
+	_, err := r.db.Exec(ctx, query, userID, categoryIDs)
+
+	return err
+}
+
+func (r *userRepository) InsertFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+	if token == "" {
+		return nil
+	}
+
+	query := `
+		INSERT INTO fcm_tokens (user_id, token, created_at, updated_at)
+		VALUES ($1, $2, NOW(), NOW())
+		ON CONFLICT (user_id, token) DO UPDATE 
+		SET updated_at = NOW()
+	`
+
+	_, err := r.db.Exec(ctx, query, userID, token)
+
+	if err != nil {
+		return fmt.Errorf("failed to insert FCM token: %w", err)
+	}
+
+	return nil
+}
+
+func (r *userRepository) DeleteFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+	if token == "" {
+		return nil
+	}
+
+	query := `DELETE FROM fcm_tokens WHERE user_id = $1 AND token = $2`
+
+	result, err := r.db.Exec(ctx, query, userID, token)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete FCM token: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("token not found for user")
+	}
+
+	return nil
 }
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*User, error) {

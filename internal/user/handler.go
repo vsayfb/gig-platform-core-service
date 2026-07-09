@@ -22,6 +22,10 @@ func NewUserHandler(service *UserService) *UserHandler {
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/users/{id}", h.GetByID)
 	r.Put("/users/me/profile", h.UpdateProfile)
+	r.Post("/users/me/fcm-token", h.CreateFCMToken)
+	r.Delete("/users/me/fcm-token", h.DeleteFCMToken)
+	r.Put("/users/me/categories", h.UpdateCategories)
+
 }
 
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +87,100 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, updated)
+}
+
+func (h *UserHandler) CreateFCMToken(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		slog.WarnContext(r.Context(), "invalid request body", "err", err)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
+
+		return
+	}
+
+	userID, err := middleware.UserIDFromContext(r.Context())
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err = h.service.AddFCMToken(r.Context(), userID, input.Token)
+
+	if err != nil {
+		slog.ErrorContext(r.Context(), "internal server error", "err", err)
+
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal server error.")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) DeleteFCMToken(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		slog.WarnContext(r.Context(), "invalid request body", "err", err)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
+
+		return
+	}
+
+	userID, err := middleware.UserIDFromContext(r.Context())
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err = h.service.AddFCMToken(r.Context(), userID, input.Token)
+
+	if err != nil {
+		slog.ErrorContext(r.Context(), "internal server error", "err", err)
+
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal server error.")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CategoryIDs []uuid.UUID `json:"category_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.WarnContext(r.Context(), "invalid request body", "err", err)
+		httputil.WriteError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	categoryIDs := req.CategoryIDs
+	userID, err := middleware.UserIDFromContext(r.Context())
+
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err = h.service.PutCategories(r.Context(), userID, categoryIDs)
+
+	if err != nil {
+
+		slog.ErrorContext(r.Context(), "internal server error", "err", err)
+
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal server error.")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {

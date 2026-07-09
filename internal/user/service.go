@@ -53,6 +53,34 @@ func (s *UserService) UpdateProfile(ctx context.Context, user *User) (*User, err
 	return updated, nil
 }
 
+func (s *UserService) AddFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+	err := s.userRepo.InsertFCMToken(ctx, userID, token)
+
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return nil
+}
+
+func (s *UserService) RemoveFCMToken(ctx context.Context, userID uuid.UUID, token string) error {
+	err := s.userRepo.DeleteFCMToken(ctx, userID, token)
+
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return nil
+}
+
+func (s *UserService) PutCategories(ctx context.Context, userID uuid.UUID, categoryIDs []uuid.UUID) error {
+	if err := s.userRepo.InsertCategories(ctx, userID, categoryIDs); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	return nil
+}
+
 func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := s.userRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
