@@ -1,29 +1,37 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
-
-var (
-	HttpRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "core_http_requests_total",
-			Help: "Total HTTP requests handled, by route, method and status.",
-		},
-		[]string{"route", "method", "status"},
-	)
-
-	HttpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "core_http_request_duration_seconds",
-			Help:    "HTTP request latency in seconds.",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"route", "method", "status"},
-	)
+import (
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
-func Register() {
-	prometheus.MustRegister(
-		HttpRequestsTotal,
-		HttpRequestDuration,
+var (
+	meter = otel.Meter("http.server")
+
+	HttpRequestsTotal   metric.Int64Counter
+	HttpRequestDuration metric.Float64Histogram
+)
+
+func Register() error {
+	var err error
+
+	HttpRequestsTotal, err = meter.Int64Counter(
+		"core.http.requests_total",
+		metric.WithDescription("Total HTTP requests handled, by route, method and status."),
+		metric.WithUnit("1"),
 	)
+	if err != nil {
+		return err
+	}
+
+	HttpRequestDuration, err = meter.Float64Histogram(
+		"core.http.request.duration",
+		metric.WithDescription("HTTP request latency in seconds."),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

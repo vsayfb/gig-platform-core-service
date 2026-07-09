@@ -19,11 +19,13 @@ func InitTracer(ctx context.Context, serviceName, collectorAddr string) (func(co
 		collectorAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("dial otel collector: %w", err)
 	}
 
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+
 	if err != nil {
 		return nil, fmt.Errorf("create otlp exporter: %w", err)
 	}
@@ -33,6 +35,7 @@ func InitTracer(ctx context.Context, serviceName, collectorAddr string) (func(co
 			semconv.ServiceName(serviceName),
 		),
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("create otel resource: %w", err)
 	}

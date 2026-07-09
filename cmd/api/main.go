@@ -33,6 +33,7 @@ import (
 	"github.com/vsayfb/gig-platform-core-service/pkg/metrics"
 	"github.com/vsayfb/gig-platform-core-service/pkg/middleware"
 	"github.com/vsayfb/gig-platform-core-service/pkg/squs"
+	"github.com/vsayfb/gig-platform-core-service/pkg/telemetry"
 	"github.com/vsayfb/gig-platform-core-service/pkg/tracing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -150,18 +151,36 @@ func main() {
 
 	}
 
-	shutdownTracer, err := tracing.InitTracer(ctx, cfg.REST.ServiceName, cfg.REST.OTelCollectorAddr)
+	shutdownTelemetry, err := telemetry.Init(ctx, cfg.REST.ServiceName, cfg.REST.OTelCollectorAddr)
 
 	if err != nil {
-		slog.Error("failed to init tracer", "error", err)
+		slog.Error("failed to init telemetry", "error", err)
+		os.Exit(1)
+	}
+
+	defer func() {
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+		defer cancel()
+
+		if err := shutdownTelemetry(shutdownCtx); err != nil {
+			slog.Error("telemetry shutdown error", "error", err)
+		}
+	}()
+
+	if err := metrics.Register(); err != nil {
+		slog.Error("failed to register metrics", "error", err)
 		os.Exit(1)
 	}
 
 	slog.SetDefault(slog.New(tracing.NewOTelHandler(logHandler)))
 
-	metrics.Register()
-
-	metrics_svc := metrics.StartServer(cfg.REST.MetricsServerPort)
+	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.TracingMiddleware)
+	r.Use(middleware.StructuredLogger)
+	r.Use(middleware.MetricsMiddleware)
+	r.Use(chimiddleware.Recoverer)
 
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.TracingMiddleware)
@@ -231,12 +250,6 @@ func main() {
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("failed to close server's http connection", "err", err)
 	}
-
-	if err := metrics_svc.Shutdown(shutdownCtx); err != nil {
-		slog.Error("failed to close metrics' http connection", "err", err)
-	}
-
-	shutdownTracer(shutdownCtx)
 
 	slog.Info("shutdown complete")
 }
