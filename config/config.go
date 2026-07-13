@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 			User:     mustGetEnv("DB_USER"),
 			Password: mustGetEnv("DB_PASSWORD"),
 			Name:     mustGetEnv("DB_NAME"),
-			SSLMode:  getEnv("DB_SSLMODE", "enable"),
+			SSLMode:  getEnv("DB_SSLMODE", "require"),
 		},
 		JWT: JWTConfig{
 			Secret:     mustGetEnv("JWT_SECRET"),
