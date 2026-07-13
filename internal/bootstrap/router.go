@@ -22,6 +22,7 @@ func newRouter(cfg *config.Config, h *handlers, jwtManager *jwt.Manager) *chi.Mu
 	}
 
 	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.Heartbeat("/health"))
 	r.Use(middleware.TracingMiddleware)
 	r.Use(middleware.StructuredLogger)
 	r.Use(middleware.MetricsMiddleware)
