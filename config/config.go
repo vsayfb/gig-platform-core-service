@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 			User:     mustGetEnv("DB_USER"),
 			Password: mustGetEnv("DB_PASSWORD"),
 			Name:     mustGetEnv("DB_NAME"),
-			SSLMode:  mustGetEnv("DB_SSLMODE"),
+			SSLMode:  getEnv("DB_SSLMODE", "enable"),
 		},
 		JWT: JWTConfig{
 			Secret:     mustGetEnv("JWT_SECRET"),
@@ -69,19 +69,19 @@ func Load() (*Config, error) {
 			ClientID: mustGetEnv("GOOGLE_CLIENT_ID"),
 		},
 		REST: ServerConfig{
-			Port:              mustGetEnv("REST_PORT"),
-			MetricsServerPort: mustGetEnv("METRICS_SERVER_PORT"),
-			ServiceName:       mustGetEnv("SERVICE_NAME"),
-			OTelCollectorAddr: mustGetEnv("OTEL_COLLECTOR_ADDR"),
+			Port:              getEnv("REST_PORT", "8080"),
+			MetricsServerPort: getEnv("METRICS_SERVER_PORT", ":9100"),
+			ServiceName:       getEnv("SERVICE_NAME", "core-service"),
+			OTelCollectorAddr: getEnv("OTEL_COLLECTOR_ADDR", "localhost:4317"),
 		},
 		GRPC: GRPCConfig{
-			Port: mustGetEnv("GRPC_PORT"),
+			Port: getEnv("GRPC_PORT", "9090"),
 		},
 		SQS: SQS{
 			QueueURL: mustGetEnv("SQS_QUEUE_URL"),
 			BaseURL:  mustGetEnv("SQS_QUEUE_URL"),
 		},
-		Env: mustGetEnv("APP_ENV"),
+		Env: getEnv("APP_ENV", "production"),
 	}
 
 	return cfg, nil
@@ -94,6 +94,13 @@ func mustGetEnv(key string) string {
 		log.Fatalf("missing required env var: %s", key)
 	}
 	return v
+}
+
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }
 
 func (c *DBConfig) DSN() string {
