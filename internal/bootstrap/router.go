@@ -21,27 +21,30 @@ func newRouter(cfg *config.Config, h *handlers, jwtManager *jwt.Manager) *chi.Mu
 		}))
 	}
 
-	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Heartbeat("/health"))
-	r.Use(middleware.TracingMiddleware)
-	r.Use(middleware.StructuredLogger)
-	r.Use(middleware.MetricsMiddleware)
-	r.Use(chimiddleware.Recoverer)
 
-	r.Group(func(r chi.Router) {
-		h.auth.RegisterRoutes(r)
-		h.category.RegisterRoutes(r, jwtManager)
-		h.gig.RegisterRoutes(r, jwtManager)
-		h.application.RegisterRoutes(r, jwtManager)
-		h.review.RegisterRoutes(r, jwtManager)
-	})
+	r.Route("/core", func(r chi.Router) {
+		r.Use(chimiddleware.RequestID)
+		r.Use(middleware.TracingMiddleware)
+		r.Use(middleware.StructuredLogger)
+		r.Use(middleware.MetricsMiddleware)
+		r.Use(chimiddleware.Recoverer)
 
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(jwtManager))
-		h.user.RegisterRoutes(r)
-		h.location.RegisterRoutes(r)
-		h.contract.RegisterRoutes(r)
-		h.notification.RegisterRoutes(r)
+		r.Group(func(r chi.Router) {
+			h.auth.RegisterRoutes(r)
+			h.category.RegisterRoutes(r, jwtManager)
+			h.gig.RegisterRoutes(r, jwtManager)
+			h.application.RegisterRoutes(r, jwtManager)
+			h.review.RegisterRoutes(r, jwtManager)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			h.user.RegisterRoutes(r)
+			h.location.RegisterRoutes(r)
+			h.contract.RegisterRoutes(r)
+			h.notification.RegisterRoutes(r)
+		})
 	})
 
 	return r
