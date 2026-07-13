@@ -109,10 +109,3 @@ func (c *DBConfig) DSN() string {
 		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,
 	)
 }
-
-func (c *DBConfig) URL() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		c.User, c.Password, c.Host, c.Port, c.Name, c.SSLMode,
-	)
-}
