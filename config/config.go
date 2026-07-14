@@ -1,8 +1,8 @@
 package config
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 )
@@ -51,49 +51,14 @@ type SQS struct {
 	BaseURL  string
 }
 
-func Load() (*Config, error) {
-	cfg := &Config{
-		DB: DBConfig{
-			Host:     mustGetEnv("DB_HOST"),
-			Port:     mustGetEnv("DB_PORT"),
-			User:     mustGetEnv("DB_USER"),
-			Password: mustGetEnv("DB_PASSWORD"),
-			Name:     mustGetEnv("DB_NAME"),
-			SSLMode:  getEnv("DB_SSLMODE", "require"),
-		},
-		JWT: JWTConfig{
-			Secret:     mustGetEnv("JWT_SECRET"),
-			Expiration: 24 * time.Hour,
-		},
-		Google: GoogleConfig{
-			ClientID: mustGetEnv("GOOGLE_CLIENT_ID"),
-		},
-		REST: ServerConfig{
-			Port:              getEnv("REST_PORT", "8080"),
-			MetricsServerPort: getEnv("METRICS_SERVER_PORT", ":9100"),
-			ServiceName:       getEnv("SERVICE_NAME", "core-service"),
-			OTelCollectorAddr: getEnv("OTEL_COLLECTOR_ADDR", "localhost:4317"),
-		},
-		GRPC: GRPCConfig{
-			Port: getEnv("GRPC_PORT", "9090"),
-		},
-		SQS: SQS{
-			QueueURL: mustGetEnv("SQS_QUEUE_URL"),
-			BaseURL:  mustGetEnv("SQS_QUEUE_URL"),
-		},
-		Env: getEnv("APP_ENV", "production"),
+func Load(ctx context.Context) (*Config, error) {
+	env := getEnv("APP_ENV", "development")
+
+	if env == "production" {
+		return loadAWS(ctx)
 	}
 
-	return cfg, nil
-}
-
-func mustGetEnv(key string) string {
-	v := os.Getenv(key)
-
-	if v == "" {
-		log.Fatalf("missing required env var: %s", key)
-	}
-	return v
+	return loadEnv()
 }
 
 func getEnv(key, defaultValue string) string {
@@ -103,9 +68,24 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func mustGetEnv(key string) string {
+	v := os.Getenv(key)
+
+	if v == "" {
+		panic(fmt.Sprintf("missing required env var: %s", key))
+	}
+
+	return v
+}
+
 func (c *DBConfig) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,
+		c.Host,
+		c.Port,
+		c.User,
+		c.Password,
+		c.Name,
+		c.SSLMode,
 	)
 }
