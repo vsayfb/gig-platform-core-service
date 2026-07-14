@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -82,7 +83,7 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		SQS: SQS{
 			QueueURL: params["sqs-category-events-queue-url"],
 		},
-		Env: "production",
+		Env: getOrDefault(params, "env", "production"),
 	}, nil
 }
 
@@ -137,7 +138,13 @@ func loadSecret(
 }
 
 func getOrDefault(values map[string]string, key, def string) string {
-	if v, ok := values[key]; ok {
+	envKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+
+	if v := os.Getenv(envKey); v != "" {
+		return v
+	}
+
+	if v, ok := values[key]; ok && v != "" {
 		return v
 	}
 
