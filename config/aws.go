@@ -41,11 +41,9 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		return nil, err
 	}
 
-	rdsSecretARN := params["rds-secret-arn"]
-
 	var dbSecret rdsSecret
 
-	if err := loadSecret(ctx, secretClient, rdsSecretARN, &dbSecret); err != nil {
+	if err := loadSecret(ctx, secretClient, params["rds-secret-arn"], &dbSecret); err != nil {
 		return nil, err
 	}
 
@@ -59,10 +57,10 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		DB: DBConfig{
 			Host:     params["db-host"],
 			Port:     params["db-port"],
-			Name:     params["db-name"],
-			SSLMode:  getOrDefault(params, "db-sslmode", "require"),
 			User:     dbSecret.Username,
 			Password: dbSecret.Password,
+			Name:     params["db-name"],
+			SSLMode:  "require",
 		},
 		JWT: JWTConfig{
 			Secret:     jwt.Secret,
@@ -73,8 +71,8 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		},
 		REST: ServerConfig{
 			Port:              getOrDefault(params, "rest-port", "8080"),
-			MetricsServerPort: getOrDefault(params, "metrics-server-port", ":9100"),
 			ServiceName:       getOrDefault(params, "service-name", "core-service"),
+			MetricsServerPort: getOrDefault(params, "metrics-server-port", "9091"),
 			OTelCollectorAddr: getOrDefault(params, "otel-collector-addr", "localhost:4317"),
 		},
 		GRPC: GRPCConfig{
@@ -83,37 +81,35 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		SQS: SQS{
 			QueueURL: params["sqs-category-events-queue-url"],
 		},
-		Env: getOrDefault(params, "env", "production"),
+		Env: "production",
 	}, nil
 }
 
 func loadParameters(ctx context.Context, client *ssm.Client) (map[string]string, error) {
+	names := []string{
+		parameter("db-host"),
+		parameter("db-port"),
+		parameter("db-name"),
+		parameter("google-client-id"),
+		parameter("sqs-category-events-queue-url"),
+		parameter("rds-secret-arn"),
+		parameter("jwt-secret-arn"),
+	}
+
+	out, err := client.GetParameters(ctx, &ssm.GetParametersInput{
+		Names:          names,
+		WithDecryption: aws.Bool(true),
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("read parameter store: %w", err)
+	}
+
 	params := make(map[string]string)
 
-	var nextToken *string
-
-	for {
-		out, err := client.GetParametersByPath(ctx, &ssm.GetParametersByPathInput{
-			Path:           aws.String(parameterPath),
-			Recursive:      aws.Bool(true),
-			WithDecryption: aws.Bool(true),
-			NextToken:      nextToken,
-		})
-
-		if err != nil {
-			return nil, fmt.Errorf("read parameter store: %w", err)
-		}
-
-		for _, p := range out.Parameters {
-			name := strings.TrimPrefix(aws.ToString(p.Name), parameterPath+"/")
-			params[name] = aws.ToString(p.Value)
-		}
-
-		if out.NextToken == nil {
-			break
-		}
-
-		nextToken = out.NextToken
+	for _, p := range out.Parameters {
+		key := strings.TrimPrefix(aws.ToString(p.Name), parameterPath+"/")
+		params[key] = aws.ToString(p.Value)
 	}
 
 	return params, nil
@@ -149,4 +145,8 @@ func getOrDefault(values map[string]string, key, def string) string {
 	}
 
 	return def
+}
+
+func parameter(name string) string {
+	return parameterPath + "/" + name
 }
