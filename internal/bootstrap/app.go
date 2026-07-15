@@ -53,6 +53,8 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("sqs publisher: %w", err)
 	}
 
+	slog.Info("sqs client initialized")
+
 	repos := newRepositories(db)
 	svcs := newServices(repos, googleVerifier, jwtManager, db)
 	hdlrs := newHandlers(svcs, sqsPublisher)
@@ -60,7 +62,7 @@ func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	slog.Info("dependencies injected")
 
 	shutdownTelemetry, err := initTelemetry(ctx, cfg)
-	
+
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("telemetry: %w", err)

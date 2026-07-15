@@ -12,6 +12,13 @@ func loadEnv() (*Config, error) {
 			Name:     mustGetEnv("DB_NAME"),
 			SSLMode:  getEnv("DB_SSLMODE", "require"),
 		},
+		AWS: AWSConfig{
+			Region:              mustGetEnv("AWS_REGION"),
+			AccessKeyID:         mustGetEnv("AWS_ACCESS_KEY_ID"),
+			SecretAccessKey:     mustGetEnv("AWS_SECRET_ACCESS_KEY"),
+			SQSEndpoint:         mustGetEnv("AWS_SQS_ENDPOINT"),
+			SQSCategoryQueueURL: mustGetEnv("SQS_CATEGORY_QUEUE_URL"),
+		},
 		JWT: JWTConfig{
 			Secret:     mustGetEnv("JWT_SECRET"),
 			Expiration: 24 * time.Hour,
@@ -27,10 +34,6 @@ func loadEnv() (*Config, error) {
 		},
 		GRPC: GRPCConfig{
 			Port: getEnv("GRPC_PORT", "9090"),
-		},
-		SQS: SQS{
-			QueueURL: mustGetEnv("SQS_QUEUE_URL"),
-			BaseURL:  getEnv("SQS_BASE_URL", "http://localhost:4566"),
 		},
 		Env: getEnv("APP_ENV", "development"),
 	}, nil

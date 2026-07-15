@@ -9,14 +9,19 @@ import (
 	"time"
 )
 
+const (
+	EnvironmentDevelopment = "development"
+	EnvironmentProduction  = "production"
+)
+
 type Config struct {
 	DB     DBConfig
+	AWS    AWSConfig
 	JWT    JWTConfig
 	Google GoogleConfig
 	REST   ServerConfig
 	GRPC   GRPCConfig
 	Env    string
-	SQS    SQS
 }
 
 type DBConfig struct {
@@ -26,6 +31,14 @@ type DBConfig struct {
 	Password string
 	Name     string
 	SSLMode  string
+}
+
+type AWSConfig struct {
+	Region              string
+	AccessKeyID         string
+	SecretAccessKey     string
+	SQSEndpoint         string
+	SQSCategoryQueueURL string
 }
 
 type JWTConfig struct {
@@ -46,11 +59,6 @@ type ServerConfig struct {
 
 type GRPCConfig struct {
 	Port string
-}
-
-type SQS struct {
-	QueueURL string
-	BaseURL  string
 }
 
 func Load(ctx context.Context) (*Config, error) {

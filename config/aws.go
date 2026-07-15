@@ -78,9 +78,6 @@ func loadAWS(ctx context.Context) (*Config, error) {
 		GRPC: GRPCConfig{
 			Port: getOrDefault(params, "grpc-port", "9090"),
 		},
-		SQS: SQS{
-			QueueURL: params["sqs-category-events-queue-url"],
-		},
 		Env: "production",
 	}, nil
 }
