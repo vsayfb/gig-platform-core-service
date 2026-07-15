@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"time"
 )
@@ -88,4 +90,19 @@ func (c *DBConfig) DSN() string {
 		c.Name,
 		c.SSLMode,
 	)
+}
+
+func (c *DBConfig) URL() string {
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   net.JoinHostPort(c.Host, c.Port),
+		Path:   c.Name,
+	}
+
+	q := u.Query()
+	q.Set("sslmode", c.SSLMode)
+	u.RawQuery = q.Encode()
+
+	return u.String()
 }
