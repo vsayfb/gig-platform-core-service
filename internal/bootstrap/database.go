@@ -19,11 +19,9 @@ func newDatabase(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error)
 
 	slog.Info("db connected")
 
-	if cfg.Env != "production" {
-		if err := database.RunMigrations(cfg.DB.URL()); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("run migrations: %w", err)
-		}
+	if err := database.RunMigrations(cfg.DB.URL()); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
 	return db, nil

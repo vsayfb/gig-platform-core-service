@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -14,7 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
-const parameterPath = "/gerek/app"
+const BasePath = "/gig/app"
+
+const (
+	SSMParameterDBHost                 = "db-host"
+	SSMParameterDBPort                 = "db-port"
+	SSMParameterDBName                 = "db-name"
+	SSMParameterGoogleClientID         = "google-client-id"
+	SSMParameterSQSCategoryEventsQueue = "sqs-category-events-queue-url"
+	SSMParameterRDSSecretARN           = "rds-secret-arn"
+	SSMParameterJWTSecretARN           = "jwt-secret-arn"
+)
 
 type rdsSecret struct {
 	Username string `json:"username"`
@@ -43,23 +52,23 @@ func loadAWS(ctx context.Context) (*Config, error) {
 
 	var dbSecret rdsSecret
 
-	if err := loadSecret(ctx, secretClient, params["rds-secret-arn"], &dbSecret); err != nil {
+	if err := loadSecret(ctx, secretClient, params[SSMParameterRDSSecretARN], &dbSecret); err != nil {
 		return nil, err
 	}
 
 	var jwt jwtSecret
 
-	if err := loadSecret(ctx, secretClient, params["jwt-secret-arn"], &jwt); err != nil {
+	if err := loadSecret(ctx, secretClient, params[SSMParameterJWTSecretARN], &jwt); err != nil {
 		return nil, err
 	}
 
 	return &Config{
 		DB: DBConfig{
-			Host:     params["db-host"],
-			Port:     params["db-port"],
+			Host:     params[SSMParameterDBHost],
+			Port:     params[SSMParameterDBPort],
 			User:     dbSecret.Username,
 			Password: dbSecret.Password,
-			Name:     params["db-name"],
+			Name:     params[SSMParameterDBName],
 			SSLMode:  "require",
 		},
 		JWT: JWTConfig{
@@ -67,30 +76,30 @@ func loadAWS(ctx context.Context) (*Config, error) {
 			Expiration: 24 * time.Hour,
 		},
 		Google: GoogleConfig{
-			ClientID: params["google-client-id"],
+			ClientID: params[SSMParameterGoogleClientID],
 		},
 		REST: ServerConfig{
-			Port:              getOrDefault(params, "rest-port", "8080"),
-			ServiceName:       getOrDefault(params, "service-name", "core-service"),
-			MetricsServerPort: getOrDefault(params, "metrics-server-port", "9091"),
-			OTelCollectorAddr: getOrDefault(params, "otel-collector-addr", "localhost:4317"),
+			Port:              getEnv(EnvRESTPort, DefaultRestPORT),
+			MetricsServerPort: getEnv(EnvMetricsServerPort, DefaultMetricsServerPort),
+			ServiceName:       getEnv(EnvServiceName, DefaultServiceName),
+			OTelCollectorAddr: getEnv(EnvOTelCollectorAddr, DefaultOtelCollectorAddr),
 		},
 		GRPC: GRPCConfig{
-			Port: getOrDefault(params, "grpc-port", "9090"),
+			Port: DefaultGRPCPORT,
 		},
-		Env: "production",
+		Env: EnvironmentProduction,
 	}, nil
 }
 
 func loadParameters(ctx context.Context, client *ssm.Client) (map[string]string, error) {
 	names := []string{
-		parameter("db-host"),
-		parameter("db-port"),
-		parameter("db-name"),
-		parameter("google-client-id"),
-		parameter("sqs-category-events-queue-url"),
-		parameter("rds-secret-arn"),
-		parameter("jwt-secret-arn"),
+		parameter(SSMParameterDBHost),
+		parameter(SSMParameterDBPort),
+		parameter(SSMParameterDBName),
+		parameter(SSMParameterGoogleClientID),
+		parameter(SSMParameterSQSCategoryEventsQueue),
+		parameter(SSMParameterRDSSecretARN),
+		parameter(SSMParameterJWTSecretARN),
 	}
 
 	out, err := client.GetParameters(ctx, &ssm.GetParametersInput{
@@ -105,7 +114,7 @@ func loadParameters(ctx context.Context, client *ssm.Client) (map[string]string,
 	params := make(map[string]string)
 
 	for _, p := range out.Parameters {
-		key := strings.TrimPrefix(aws.ToString(p.Name), parameterPath+"/")
+		key := strings.TrimPrefix(aws.ToString(p.Name), BasePath+"/")
 		params[key] = aws.ToString(p.Value)
 	}
 
@@ -130,20 +139,6 @@ func loadSecret(
 	return json.Unmarshal([]byte(aws.ToString(out.SecretString)), dst)
 }
 
-func getOrDefault(values map[string]string, key, def string) string {
-	envKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-
-	if v := os.Getenv(envKey); v != "" {
-		return v
-	}
-
-	if v, ok := values[key]; ok && v != "" {
-		return v
-	}
-
-	return def
-}
-
 func parameter(name string) string {
-	return parameterPath + "/" + name
+	return BasePath + "/" + name
 }

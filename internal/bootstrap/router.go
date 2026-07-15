@@ -13,7 +13,7 @@ import (
 func newRouter(cfg *config.Config, h *handlers, jwtManager *jwt.Manager) *chi.Mux {
 	r := chi.NewRouter()
 
-	if cfg.Env != "production" {
+	if cfg.Env != config.EnvironmentProduction {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins: []string{"*"},
 			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

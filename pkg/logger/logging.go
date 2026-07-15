@@ -3,21 +3,28 @@ package logger
 import (
 	"log/slog"
 	"os"
+
+	"github.com/vsayfb/gig-platform-core-service/config"
 )
 
 func Init(env string) slog.Handler {
-	var opts slog.HandlerOptions
+	var (
+		opts    slog.HandlerOptions
+		handler slog.Handler
+	)
 
 	switch env {
-	case "production", "stage":
-		opts = slog.HandlerOptions{Level: slog.LevelInfo}
-		handler := slog.NewJSONHandler(os.Stdout, &opts)
-		slog.SetDefault(slog.New(handler))
-		return handler
+
+	case config.EnvironmentProduction:
+		opts.Level = slog.LevelInfo
+		handler = slog.NewJSONHandler(os.Stdout, &opts)
+
 	default:
-		opts = slog.HandlerOptions{Level: slog.LevelDebug}
-		handler := slog.NewTextHandler(os.Stdout, &opts)
-		slog.SetDefault(slog.New(handler))
-		return handler
+		opts.Level = slog.LevelDebug
+		handler = slog.NewTextHandler(os.Stdout, &opts)
 	}
+
+	slog.SetDefault(slog.New(handler))
+
+	return handler
 }

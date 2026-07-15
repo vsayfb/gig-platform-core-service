@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-const (
-	EnvironmentDevelopment = "development"
-	EnvironmentProduction  = "production"
-)
 
 type Config struct {
 	DB     DBConfig
@@ -62,9 +58,9 @@ type GRPCConfig struct {
 }
 
 func Load(ctx context.Context) (*Config, error) {
-	env := getEnv("APP_ENV", "development")
+	env := getEnv(AppEnv, EnvironmentDevelopment)
 
-	if env == "production" {
+	if env == EnvironmentProduction {
 		return loadAWS(ctx)
 	}
 

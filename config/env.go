@@ -5,36 +5,36 @@ import "time"
 func loadEnv() (*Config, error) {
 	return &Config{
 		DB: DBConfig{
-			Host:     mustGetEnv("DB_HOST"),
-			Port:     mustGetEnv("DB_PORT"),
-			User:     mustGetEnv("DB_USER"),
-			Password: mustGetEnv("DB_PASSWORD"),
-			Name:     mustGetEnv("DB_NAME"),
-			SSLMode:  getEnv("DB_SSLMODE", "require"),
+			Host:     mustGetEnv(EnvDBHost),
+			Port:     mustGetEnv(EnvDBPort),
+			User:     mustGetEnv(EnvDBUser),
+			Password: mustGetEnv(EnvDBPassword),
+			Name:     mustGetEnv(EnvDBName),
+			SSLMode:  getEnv(EnvDBSSLMode, DefaultSSLMode),
 		},
 		AWS: AWSConfig{
-			Region:              mustGetEnv("AWS_REGION"),
-			AccessKeyID:         mustGetEnv("AWS_ACCESS_KEY_ID"),
-			SecretAccessKey:     mustGetEnv("AWS_SECRET_ACCESS_KEY"),
-			SQSEndpoint:         mustGetEnv("AWS_SQS_ENDPOINT"),
-			SQSCategoryQueueURL: mustGetEnv("SQS_CATEGORY_QUEUE_URL"),
+			Region:              mustGetEnv(EnvAWSRegion),
+			AccessKeyID:         mustGetEnv(EnvAWSAccessKeyID),
+			SecretAccessKey:     mustGetEnv(EnvAWSSecretAccessKey),
+			SQSEndpoint:         mustGetEnv(EnvSQSEndpoint),
+			SQSCategoryQueueURL: mustGetEnv(EnvSQSCategoryQueueURL),
 		},
 		JWT: JWTConfig{
-			Secret:     mustGetEnv("JWT_SECRET"),
+			Secret:     mustGetEnv(EnvJWTSecret),
 			Expiration: 24 * time.Hour,
 		},
 		Google: GoogleConfig{
-			ClientID: mustGetEnv("GOOGLE_CLIENT_ID"),
+			ClientID: mustGetEnv(EnvGoogleClientID),
 		},
 		REST: ServerConfig{
-			Port:              getEnv("REST_PORT", "8080"),
-			MetricsServerPort: getEnv("METRICS_SERVER_PORT", ":9100"),
-			ServiceName:       getEnv("SERVICE_NAME", "core-service"),
-			OTelCollectorAddr: getEnv("OTEL_COLLECTOR_ADDR", "localhost:4317"),
+			Port:              getEnv(EnvRESTPort, DefaultRestPORT),
+			MetricsServerPort: getEnv(EnvMetricsServerPort, DefaultMetricsServerPort),
+			ServiceName:       getEnv(EnvServiceName, DefaultServiceName),
+			OTelCollectorAddr: getEnv(EnvOTelCollectorAddr, DefaultOtelCollectorAddr),
 		},
 		GRPC: GRPCConfig{
-			Port: getEnv("GRPC_PORT", "9090"),
+			Port: getEnv(EnvGRPCPort, DefaultGRPCPORT),
 		},
-		Env: getEnv("APP_ENV", "development"),
+		Env: getEnv(AppEnv, EnvironmentDevelopment),
 	}, nil
 }
